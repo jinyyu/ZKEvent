@@ -1,9 +1,12 @@
 #include <assert.h>
 #include "ZkClient/ZkClient.h"
-#include "DebugLog.h"
+#include "ZkClient/DebugLog.h"
 
+namespace zkcli
+{
 
-static const char* zk_state_to_str(int state) {
+static const char* zk_state_to_str(int state)
+{
     if (state == ZOO_EXPIRED_SESSION_STATE) {
         return "EXPIRED_SESSION_STATE";
     }
@@ -37,7 +40,7 @@ const char* zk_type_to_str(int type)
         return "DELETED_EVENT";
     }
     if (type == ZOO_CHANGED_EVENT) {
-        return  "CHANGED_EVENT";
+        return "CHANGED_EVENT";
     }
     if (type == ZOO_CHILD_EVENT) {
         return "CHILD_EVENT";
@@ -51,7 +54,6 @@ const char* zk_type_to_str(int type)
     return "INVALID_TYPE";
 }
 
-
 ZkClient::ZkClient(const std::string& servers, int timeout)
     : servers_(servers),
       timeout_(timeout),
@@ -59,21 +61,22 @@ ZkClient::ZkClient(const std::string& servers, int timeout)
       state_(ZOO_CONNECTING_STATE)
 {
     //disable log
-    zoo_set_debug_level((ZooLogLevel)0);
+    zoo_set_debug_level((ZooLogLevel) 0);
 
     start_connect();
 }
 
-ZkClient::~ZkClient(){
-   if (zk_) {
-       zookeeper_close(zk_);
-   }
+ZkClient::~ZkClient()
+{
+    if (zk_) {
+        zookeeper_close(zk_);
+    }
 }
 
 void ZkClient::start_connect()
 {
-    zhandle_t* zoo = zookeeper_init(servers_.c_str(), ZkClient::zk_event_cb, timeout_, nullptr, this, 0);
-    if (!zoo) {
+    zk_ = zookeeper_init(servers_.c_str(), ZkClient::zk_event_cb, timeout_, nullptr, this, 0);
+    if (!zk_) {
         LOG_DEBUG("zookeeper_init error %s", strerror(errno));
         return;
     }
@@ -81,7 +84,7 @@ void ZkClient::start_connect()
 
 void ZkClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx)
 {
-    ZkClient* zk = (ZkClient*)watcherCtx;
+    ZkClient* zk = (ZkClient*) watcherCtx;
     zk->do_watch_event_cb(zh, type, state, path);
 }
 
@@ -92,5 +95,43 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const char*
     std::unique_lock<std::mutex> guard(mutex_);
     //update state
     state_ = state;
+    if (state_ == ZOO_CONNECTED_STATE) {
+        zk_ = zh;
+    }
+}
+
+void ZkClient::async_create(const std::string& path, const Slice& data, const StringCallback& cb)
+{
+    std::unique_lock<std::mutex> guard(mutex_);
+    if (!zk_) {
+        LOG_DEBUG("not connected")
+        cb(ZCONNECTIONLOSS, Slice(nullptr, 0));
+        return;
+    }
+
+    StringCallback* callback = new StringCallback(cb);
+    int ret = zoo_acreate(zk_,
+                          path.c_str(),
+                          data.data(),
+                          data.size(),
+                          &ZOO_OPEN_ACL_UNSAFE,
+                          0,
+                          ZkClient::handle_create,
+                          callback);
+    if (ret != ZOK) {
+        cb((ZOO_ERRORS) ret, Slice(nullptr, 0));
+    }
+}
+
+void ZkClient::handle_create(int rc, const char* value, const void* data)
+{
+    StringCallback* cb = (StringCallback*)data;
+    Slice result;
+    if (rc == ZOK) {
+        result = Slice(value, strlen(value));
+    }
+    cb->operator()((ZOO_ERRORS)rc, result);
+    delete(cb);
+}
 
 }

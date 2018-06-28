@@ -1,6 +1,9 @@
 #include <sys/time.h>
-#include "DebugLog.h"
+#include "ZkClient/DebugLog.h"
 
+
+namespace zkcli
+{
 
 void current_time_str(char* buf, int size)
 {
@@ -19,4 +22,6 @@ void current_time_str(char* buf, int size)
              result.tm_min,
              result.tm_sec,
              tv.tv_usec);
+}
+
 }
