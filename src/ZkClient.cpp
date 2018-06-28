@@ -120,7 +120,7 @@ void ZkClient::async_create(const std::string& path, const Slice& data, const St
                           callback);
     if (ret != ZOK) {
         cb((ZOO_ERRORS) ret, Slice(nullptr, 0));
-        delete(callback);
+        delete (callback);
     }
 }
 
@@ -133,34 +133,56 @@ void ZkClient::async_get(const std::string& path, int watch, const StringCallbac
         return;
     }
     StringCallback* callback = new StringCallback(cb);
-    int ret = zoo_aget(zk_,path.c_str(),watch,ZkClient::data_completion,callback);
+    int ret = zoo_aget(zk_, path.c_str(), watch, ZkClient::data_completion, callback);
     if (ret != ZOK) {
         cb((ZOO_ERRORS) ret, Slice(nullptr, 0));
-        delete(callback);
+        delete (callback);
+    }
+}
+
+void ZkClient::async_set(const std::string& path, const Slice& data, const AsyncCallback& cb)
+{
+    std::unique_lock<std::mutex> guard(mutex_);
+    if (!zk_) {
+        LOG_DEBUG("not connected")
+        cb(ZCONNECTIONLOSS);
+        return;
+    }
+    AsyncCallback* callback = new AsyncCallback(cb);
+    int ret = zoo_aset(zk_, path.c_str(), data.data(), data.size(), -1,stat_completion, callback);
+    if (ret != ZOK) {
+        cb(ret);
+        delete (callback);
     }
 }
 
 void ZkClient::string_completion(int rc, const char* value, const void* data)
 {
-    StringCallback* cb = (StringCallback*)data;
+    StringCallback* cb = (StringCallback*) data;
     Slice result;
     if (rc == ZOK) {
         result = Slice(value, strlen(value));
     }
-    cb->operator()((ZOO_ERRORS)rc, result);
-    delete(cb);
+    cb->operator()((ZOO_ERRORS) rc, result);
+    delete (cb);
 }
 
 void ZkClient::data_completion(int rc, const char* value, int value_len,
-                            const struct Stat* stat, const void* data)
+                               const struct Stat* stat, const void* data)
 {
-    StringCallback* cb = (StringCallback*)data;
+    StringCallback* cb = (StringCallback*) data;
     Slice result;
     if (rc == ZOK) {
         result = Slice(value, value_len);
     }
-    cb->operator()((ZOO_ERRORS)rc, result);
-    delete(cb);
+    cb->operator()((ZOO_ERRORS) rc, result);
+    delete (cb);
 }
 
+void ZkClient::stat_completion(int rc, const struct Stat* stat, const void* data)
+{
+    AsyncCallback* cb = (AsyncCallback*) data;
+    cb->operator()(rc);
+    delete (cb);
+}
 }

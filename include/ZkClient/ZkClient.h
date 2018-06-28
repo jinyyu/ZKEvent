@@ -20,6 +20,8 @@ public:
 
     void async_get(const std::string& path, int watch, const StringCallback& cb);
 
+    void async_set(const std::string& path, const Slice& data, const AsyncCallback& cb);
+
 private:
     void start_connect();
 
@@ -32,6 +34,9 @@ private:
 
     static void data_completion(int rc, const char* value, int value_len,
                                 const struct Stat* stat, const void* data);
+
+    static void stat_completion(int rc, const struct Stat* stat,
+                                const void* data);
 
 
 private:

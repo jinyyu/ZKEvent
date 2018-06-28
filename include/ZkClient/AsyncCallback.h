@@ -7,6 +7,7 @@
 namespace zkcli
 {
 
+typedef std::function<void(int err)> AsyncCallback;
 typedef std::function<void(int err,const Slice&)> StringCallback;
 
 
