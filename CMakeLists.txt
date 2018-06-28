@@ -12,6 +12,7 @@ set(zkclient_HEADERS
     )
 
 set(zkclient_SRCS
+    src/DebugLog.cpp
     src/ZkClient.cpp
     )
 
