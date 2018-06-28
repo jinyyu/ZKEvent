@@ -1,4 +1,5 @@
 #include "ZkClient/errors.h"
+#include "ZkClient/DebugLog.h"
 #include <zookeeper/zookeeper.h>
 
 
@@ -67,9 +68,8 @@ const char* err_string(int err)
         case ZRECONFIGDISABLED:
             return "attempts to perform a reconfiguration operation when reconfiguration feature is disabled";
     }
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "invalid error %d", err);
-    return buffer;
+    LOG_DEBUG("invalid error %d", err);
+    return "invalid error";
 }
 
 }

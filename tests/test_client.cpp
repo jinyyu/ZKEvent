@@ -37,8 +37,9 @@ void test_async_get()
 int main(int argc, char* argv[])
 {
     cli = new ZkClient("localhost:2181", 5000);
-    //test_async_create()
+    test_async_create();
     test_async_set();
     test_async_get();
     sleep(2);
+    delete (cli);
 }
