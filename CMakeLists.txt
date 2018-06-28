@@ -20,6 +20,10 @@ add_library(zkclient
             ${zkclient_HEADERS}
             ${zkclient_SRCS}
             )
+target_link_libraries(zkclient
+                      pthread
+                      zookeeper_mt)
 
+add_subdirectory(example)
 
 
