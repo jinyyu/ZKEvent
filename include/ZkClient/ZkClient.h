@@ -18,6 +18,8 @@ public:
 
     void async_create(const std::string& path, const Slice& data, const StringCallback& cb);
 
+    void async_get(const std::string& path, int watch, const StringCallback& cb);
+
 private:
     void start_connect();
 
@@ -26,7 +28,12 @@ private:
 
     void do_watch_event_cb(zhandle_t* zh, int type, int state, const char* path);
 
-    static void handle_create(int rc, const char* value, const void* data);
+    static void string_completion(int rc, const char* value, const void* data);
+
+    static void data_completion(int rc, const char* value, int value_len,
+                                const struct Stat* stat, const void* data);
+
+
 private:
     std::string servers_;
     int timeout_;

@@ -15,12 +15,22 @@ void test_async_create()
     cli->async_create("/test_zkcli", "mydata", cb);
 }
 
+void test_async_get()
+{
+    StringCallback cb = [] (int code, const Slice& data) {
+        std::string str(data.data(), data.size());
+        LOG_DEBUG("async create %s code = %s", str.c_str(), err_string(code));
+    };
+
+    cli->async_get("/test_zkcli",0, cb);
+}
+
 
 
 
 int main(int argc, char *argv[]){
     cli = new ZkClient("localhost:2181", 5000);
-    test_async_create();
-
+    //test_async_create();
+    test_async_get();
     sleep(2);
 }

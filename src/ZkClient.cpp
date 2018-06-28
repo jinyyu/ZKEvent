@@ -116,19 +116,48 @@ void ZkClient::async_create(const std::string& path, const Slice& data, const St
                           data.size(),
                           &ZOO_OPEN_ACL_UNSAFE,
                           0,
-                          ZkClient::handle_create,
+                          ZkClient::string_completion,
                           callback);
     if (ret != ZOK) {
         cb((ZOO_ERRORS) ret, Slice(nullptr, 0));
+        delete(callback);
     }
 }
 
-void ZkClient::handle_create(int rc, const char* value, const void* data)
+void ZkClient::async_get(const std::string& path, int watch, const StringCallback& cb)
+{
+    std::unique_lock<std::mutex> guard(mutex_);
+    if (!zk_) {
+        LOG_DEBUG("not connected")
+        cb(ZCONNECTIONLOSS, Slice(nullptr, 0));
+        return;
+    }
+    StringCallback* callback = new StringCallback(cb);
+    int ret = zoo_aget(zk_,path.c_str(),watch,ZkClient::data_completion,callback);
+    if (ret != ZOK) {
+        cb((ZOO_ERRORS) ret, Slice(nullptr, 0));
+        delete(callback);
+    }
+}
+
+void ZkClient::string_completion(int rc, const char* value, const void* data)
 {
     StringCallback* cb = (StringCallback*)data;
     Slice result;
     if (rc == ZOK) {
         result = Slice(value, strlen(value));
+    }
+    cb->operator()((ZOO_ERRORS)rc, result);
+    delete(cb);
+}
+
+void ZkClient::data_completion(int rc, const char* value, int value_len,
+                            const struct Stat* stat, const void* data)
+{
+    StringCallback* cb = (StringCallback*)data;
+    Slice result;
+    if (rc == ZOK) {
+        result = Slice(value, value_len);
     }
     cb->operator()((ZOO_ERRORS)rc, result);
     delete(cb);
