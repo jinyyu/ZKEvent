@@ -57,13 +57,10 @@ const char* zk_type_to_str(int type)
 ZkClient::ZkClient(const std::string& servers, int timeout)
     : servers_(servers),
       timeout_(timeout),
-      zk_(nullptr),
-      state_(ZOO_CONNECTING_STATE)
+      zk_(nullptr)
 {
     //disable log
     zoo_set_debug_level((ZooLogLevel) 0);
-
-    start_connect();
 }
 
 ZkClient::~ZkClient()
@@ -91,24 +88,10 @@ void ZkClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path,
 void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const char* path)
 {
     LOG_DEBUG("state %d, %s, %d, %s", state, zk_state_to_str(state), type, path)
-
-    std::unique_lock<std::mutex> guard(mutex_);
-    //update state
-    state_ = state;
-    if (state_ == ZOO_CONNECTED_STATE) {
-        zk_ = zh;
-    }
 }
 
 void ZkClient::async_create(const std::string& path, const Slice& data, const StringCallback& cb)
 {
-    std::unique_lock<std::mutex> guard(mutex_);
-    if (!zk_) {
-        LOG_DEBUG("not connected")
-        cb(ZCONNECTIONLOSS, Slice(nullptr, 0));
-        return;
-    }
-
     StringCallback* callback = new StringCallback(cb);
     int ret = zoo_acreate(zk_,
                           path.c_str(),
@@ -126,12 +109,6 @@ void ZkClient::async_create(const std::string& path, const Slice& data, const St
 
 void ZkClient::async_get(const std::string& path, int watch, const StringCallback& cb)
 {
-    std::unique_lock<std::mutex> guard(mutex_);
-    if (!zk_) {
-        LOG_DEBUG("not connected")
-        cb(ZCONNECTIONLOSS, Slice(nullptr, 0));
-        return;
-    }
     StringCallback* callback = new StringCallback(cb);
     int ret = zoo_aget(zk_, path.c_str(), watch, ZkClient::data_completion, callback);
     if (ret != ZOK) {
@@ -142,16 +119,31 @@ void ZkClient::async_get(const std::string& path, int watch, const StringCallbac
 
 void ZkClient::async_set(const std::string& path, const Slice& data, const AsyncCallback& cb)
 {
-    std::unique_lock<std::mutex> guard(mutex_);
-    if (!zk_) {
-        LOG_DEBUG("not connected")
-        cb(ZCONNECTIONLOSS);
-        return;
-    }
-    AsyncCallback* callback = new AsyncCallback(cb);
-    int ret = zoo_aset(zk_, path.c_str(), data.data(), data.size(), -1,stat_completion, callback);
+    StateCallback* callback = new StateCallback([cb](int err, const Stat* state) {
+        cb(err);
+    });
+    int ret = zoo_aset(zk_, path.c_str(), data.data(), data.size(), -1, ZkClient::stat_completion, callback);
     if (ret != ZOK) {
         cb(ret);
+        delete (callback);
+    }
+}
+
+void ZkClient::async_exists(const std::string& path, int watch, const ExistsCallback& cb)
+{
+    StateCallback* callback = new StateCallback([cb](int err,const Stat* state) {
+        if (err == ZOK) {
+            cb(ZOK, true);
+        } else if (err == ZNONODE) {
+            cb(ZOK, false);
+        } else {
+            cb(err, false);
+        }
+
+    });
+    int ret = zoo_aexists(zk_, path.c_str(), watch,  ZkClient::stat_completion, callback);
+    if (ret != ZOK) {
+        cb(ret, false);
         delete (callback);
     }
 }
@@ -181,8 +173,8 @@ void ZkClient::data_completion(int rc, const char* value, int value_len,
 
 void ZkClient::stat_completion(int rc, const struct Stat* stat, const void* data)
 {
-    AsyncCallback* cb = (AsyncCallback*) data;
-    cb->operator()(rc);
+    StateCallback* cb = (StateCallback*) data;
+    cb->operator()(rc, stat);
     delete (cb);
 }
 }

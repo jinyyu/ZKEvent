@@ -34,12 +34,23 @@ void test_async_get()
     cli->async_get("/test_zkcli", 0, cb);
 }
 
+void test_async_exists()
+{
+    ExistsCallback cb = [](int code, bool exists) {
+        LOG_DEBUG("async exists %d code = %s", exists, err_string(code));
+    };
+
+    cli->async_exists("/test_zkcli", 0, cb);
+}
+
 int main(int argc, char* argv[])
 {
     cli = new ZkClient("localhost:2181", 5000);
-    test_async_create();
-    test_async_set();
-    test_async_get();
+    cli->start_connect();
+    //test_async_create();
+    //test_async_set();
+    //test_async_get();
+    test_async_exists();
     sleep(2);
     delete (cli);
 }

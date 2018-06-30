@@ -2,7 +2,6 @@
 #define ZKCLIENT_ZKCLIENT_H
 #include <string>
 #include <zookeeper/zookeeper.h>
-#include <mutex>
 #include <ZkClient/AsyncCallback.h>
 #include <ZkClient/errors.h>
 
@@ -14,6 +13,8 @@ class ZkClient
 public:
     explicit ZkClient(const std::string& servers, int timeout);
 
+    void start_connect();
+
     ~ZkClient();
 
     void async_create(const std::string& path, const Slice& data, const StringCallback& cb);
@@ -22,8 +23,10 @@ public:
 
     void async_set(const std::string& path, const Slice& data, const AsyncCallback& cb);
 
+    void async_exists(const std::string& path, int watch, const ExistsCallback& cb);
+
 private:
-    void start_connect();
+
 
     static void zk_event_cb(zhandle_t* zh, int type,
                             int state, const char* path, void* watcherCtx);
@@ -35,16 +38,12 @@ private:
     static void data_completion(int rc, const char* value, int value_len,
                                 const struct Stat* stat, const void* data);
 
-    static void stat_completion(int rc, const struct Stat* stat,
-                                const void* data);
-
+    static void stat_completion(int rc, const struct Stat* stat, const void* data);
 
 private:
     std::string servers_;
     int timeout_;
 
-    std::mutex mutex_;
-    int state_;
     zhandle_t* zk_;
 };
 
