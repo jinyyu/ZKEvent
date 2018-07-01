@@ -6,7 +6,9 @@
 using namespace zkcli;
 
 ZkClient* cli;
+
 std::mutex g_mutex;
+
 std::condition_variable g_cv;
 
 void test_async_create()
@@ -46,15 +48,22 @@ void test_async_exists()
     cli->async_exists("/test_zkcli", 0, cb);
 }
 
+void on_data_changes(int err, const Slice& data)
+{
+    std::string str(data.data(), data.size());
+    LOG_DEBUG("data changes %s", str.c_str());
+}
+
 int main(int argc, char* argv[])
 {
-    cli = new ZkClient("localhost:2181", 100);
+    cli = new ZkClient("localhost:2181", 10);
 
     cli->set_connected_callback([]() {
-        test_async_create();
-        test_async_set();
-        test_async_get();
-        test_async_exists();
+        cli->subscribe_data_changes("/test_zkcli", on_data_changes);
+        //test_async_create();
+        //test_async_set();
+        //test_async_get();
+        //test_async_exists();
 
     });
 
@@ -65,8 +74,8 @@ int main(int argc, char* argv[])
 
     cli->start_connect();
 
-    std::unique_lock<std::mutex> lock(g_mutex);
-    g_cv.wait(lock);
+    cli->run();
 
+    delete (cli);
     LOG_DEBUG("exit");
 }
