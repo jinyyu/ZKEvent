@@ -168,8 +168,6 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
             do_subscribe_data_changes(it->first);
         }
     }
-
-
 }
 
 void ZkClient::async_create(const std::string& path, const Slice& data, const StringCallback& cb)

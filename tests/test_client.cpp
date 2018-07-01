@@ -72,13 +72,13 @@ int main(int argc, char* argv[])
         g_cv.notify_one();
     });
 
-    /*
+
     std::thread t1([](){
         sleep(10);
         cli->stop();
     });
     t1.detach();
-*/
+
     cli->start_connect();
 
     cli->run();
