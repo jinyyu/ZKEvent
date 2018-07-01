@@ -60,10 +60,10 @@ int main(int argc, char* argv[])
 
     cli->set_connected_callback([]() {
         cli->subscribe_data_changes("/test_zkcli", on_data_changes);
-        //test_async_create();
-        //test_async_set();
-        //test_async_get();
-        //test_async_exists();
+        test_async_create();
+        test_async_set();
+        test_async_get();
+        test_async_exists();
 
     });
 
@@ -72,6 +72,13 @@ int main(int argc, char* argv[])
         g_cv.notify_one();
     });
 
+    /*
+    std::thread t1([](){
+        sleep(10);
+        cli->stop();
+    });
+    t1.detach();
+*/
     cli->start_connect();
 
     cli->run();

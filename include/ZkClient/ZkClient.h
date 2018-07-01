@@ -45,15 +45,13 @@ private:
 
     void run_in_loop(const VoidCallback& cb);
 
-    static void zk_event_cb(zhandle_t* zh, int type,
-                            int state, const char* path, void* watcherCtx);
+    static void zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx);
 
     void do_watch_event_cb(zhandle_t* zh, int type, int state, const std::string& path);
 
     static void string_completion(int rc, const char* value, const void* data);
 
-    static void data_completion(int rc, const char* value, int value_len,
-                                const struct Stat* stat, const void* data);
+    static void data_completion(int rc, const char* value, int value_len, const struct Stat* stat, const void* data);
 
     static void stat_completion(int rc, const struct Stat* stat, const void* data);
 
@@ -68,7 +66,6 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
     std::deque<VoidCallback> pending_callbacks_;
-    int state_;
 
     zhandle_t* zk_;
 

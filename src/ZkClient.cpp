@@ -149,12 +149,10 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
 {
     LOG_DEBUG("state %s, %s, %s", zk_state_to_str(state), zk_type_to_str(type), path.c_str())
 
-    if (state == ZOO_CONNECTED_STATE) {
+    if (type == ZOO_SESSION_EVENT && state == ZOO_CONNECTED_STATE) {
         client_id_ = zoo_client_id(zh);
-
         if (connected_cb_) {
             connected_cb_();
-            return;
         }
     }
 
@@ -167,8 +165,10 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
         auto it = data_changes_cb_.find(path);
         if (it != data_changes_cb_.end()) {
             it->second.operator()(ZOK, Slice(path));
+            do_subscribe_data_changes(it->first);
         }
     }
+
 
 }
 
