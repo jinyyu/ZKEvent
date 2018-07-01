@@ -8,15 +8,12 @@ namespace zkcli
 {
 
 typedef std::function<void(int err,const Stat* state)> StateCallback;
+
 typedef std::function<void(int err)> AsyncCallback;
+
 typedef std::function<void(int err,const Slice&)> StringCallback;
+
 typedef std::function<void(int err, bool exists)> ExistsCallback;
-
-
-
-
-
-
 
 }
 
