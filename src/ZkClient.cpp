@@ -20,7 +20,7 @@ static const char* zk_state_to_str(int state)
         return "ASSOCIATING_STATE";
     }
     if (state == ZOO_CONNECTED_STATE) {
-        return "ZOO_CONNECTED_STATE";
+        return "CONNECTED_STATE";
     }
     if (state == ZOO_READONLY_STATE) {
         return "READONLY_STATE";
@@ -57,10 +57,11 @@ const char* zk_type_to_str(int type)
 ZkClient::ZkClient(const std::string& servers, int timeout)
     : servers_(servers),
       timeout_(timeout),
-      zk_(nullptr)
+      zk_(nullptr),
+      client_id_(nullptr)
 {
     //disable log
-    zoo_set_debug_level((ZooLogLevel) 0);
+    //zoo_set_debug_level((ZooLogLevel) 0);
 }
 
 ZkClient::~ZkClient()
@@ -72,7 +73,8 @@ ZkClient::~ZkClient()
 
 void ZkClient::start_connect()
 {
-    zk_ = zookeeper_init(servers_.c_str(), ZkClient::zk_event_cb, timeout_, nullptr, this, 0);
+    std::lock_guard<std::mutex> guard(mutex_);
+    zk_ = zookeeper_init(servers_.c_str(), ZkClient::zk_event_cb, timeout_, client_id_, this, 0);
     if (!zk_) {
         LOG_DEBUG("zookeeper_init error %s", strerror(errno));
         return;
@@ -87,7 +89,23 @@ void ZkClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path,
 
 void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const char* path)
 {
-    LOG_DEBUG("state %d, %s, %d, %s", state, zk_state_to_str(state), type, path)
+    LOG_DEBUG("state %s, %s, %s", zk_state_to_str(state), zk_type_to_str(type), path)
+
+    if (state == ZOO_CONNECTED_STATE) {
+        {
+            std::lock_guard<std::mutex> guard(mutex_);
+            client_id_ = zoo_client_id(zh);
+        }
+
+        if (connected_cb_) {
+            connected_cb_();
+        }
+    }
+
+    if (state == ZOO_EXPIRED_SESSION_STATE && session_expired_cb_) {
+        session_expired_cb_();
+    }
+
 }
 
 void ZkClient::async_create(const std::string& path, const Slice& data, const StringCallback& cb)
@@ -131,17 +149,19 @@ void ZkClient::async_set(const std::string& path, const Slice& data, const Async
 
 void ZkClient::async_exists(const std::string& path, int watch, const ExistsCallback& cb)
 {
-    StateCallback* callback = new StateCallback([cb](int err,const Stat* state) {
+    StateCallback* callback = new StateCallback([cb](int err, const Stat* state) {
         if (err == ZOK) {
             cb(ZOK, true);
-        } else if (err == ZNONODE) {
+        }
+        else if (err == ZNONODE) {
             cb(ZOK, false);
-        } else {
+        }
+        else {
             cb(err, false);
         }
 
     });
-    int ret = zoo_aexists(zk_, path.c_str(), watch,  ZkClient::stat_completion, callback);
+    int ret = zoo_aexists(zk_, path.c_str(), watch, ZkClient::stat_completion, callback);
     if (ret != ZOK) {
         cb(ret, false);
         delete (callback);

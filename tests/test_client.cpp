@@ -1,10 +1,13 @@
 #include <ZkClient/ZkClient.h>
 #include <ZkClient/DebugLog.h>
 #include <unistd.h>
+#include <condition_variable>
 
 using namespace zkcli;
 
 ZkClient* cli;
+std::mutex g_mutex;
+std::condition_variable g_cv;
 
 void test_async_create()
 {
@@ -45,12 +48,25 @@ void test_async_exists()
 
 int main(int argc, char* argv[])
 {
-    cli = new ZkClient("localhost:2181", 5000);
+    cli = new ZkClient("localhost:2181", 100);
+
+    cli->set_connected_callback([]() {
+        test_async_create();
+        test_async_set();
+        test_async_get();
+        test_async_exists();
+
+    });
+
+    cli->set_session_expired_callback([]() {
+        LOG_DEBUG("SESSION TIME OUT")
+        g_cv.notify_one();
+    });
+
     cli->start_connect();
-    //test_async_create();
-    //test_async_set();
-    //test_async_get();
-    test_async_exists();
-    sleep(2);
-    delete (cli);
+
+    std::unique_lock<std::mutex> lock(g_mutex);
+    g_cv.wait(lock);
+
+    LOG_DEBUG("exit");
 }

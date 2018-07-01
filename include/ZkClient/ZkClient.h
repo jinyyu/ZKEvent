@@ -4,6 +4,7 @@
 #include <zookeeper/zookeeper.h>
 #include <ZkClient/AsyncCallback.h>
 #include <ZkClient/errors.h>
+#include <mutex>
 
 namespace zkcli
 {
@@ -12,6 +13,10 @@ class ZkClient
 {
 public:
     explicit ZkClient(const std::string& servers, int timeout);
+
+    void set_connected_callback(const VoidCallback& cb) { connected_cb_ = cb; }
+
+    void set_session_expired_callback(const VoidCallback& cb) { session_expired_cb_ = cb; }
 
     void start_connect();
 
@@ -27,7 +32,6 @@ public:
 
 private:
 
-
     static void zk_event_cb(zhandle_t* zh, int type,
                             int state, const char* path, void* watcherCtx);
 
@@ -41,10 +45,17 @@ private:
     static void stat_completion(int rc, const struct Stat* stat, const void* data);
 
 private:
+
     std::string servers_;
     int timeout_;
 
     zhandle_t* zk_;
+
+    std::mutex mutex_;
+    const clientid_t* client_id_; //lock by mutex_
+
+    VoidCallback connected_cb_;
+    VoidCallback session_expired_cb_;
 };
 
 }

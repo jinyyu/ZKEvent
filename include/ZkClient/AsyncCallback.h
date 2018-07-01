@@ -7,6 +7,8 @@
 namespace zkcli
 {
 
+typedef std::function<void()> VoidCallback;
+
 typedef std::function<void(int err,const Stat* state)> StateCallback;
 
 typedef std::function<void(int err)> AsyncCallback;
