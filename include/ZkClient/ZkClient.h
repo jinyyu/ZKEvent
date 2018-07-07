@@ -17,6 +17,8 @@ namespace zkcli
 class ZkClient
 {
 public:
+    static const char* err_to_string(int err);
+
     explicit ZkClient(const std::string& servers, int timeout);
 
     void set_connected_callback(const VoidCallback& cb);

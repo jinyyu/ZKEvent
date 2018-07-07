@@ -54,6 +54,11 @@ const char* zk_type_to_str(int type)
     return "INVALID_TYPE";
 }
 
+const char* ZkClient::err_to_string(int err)
+{
+    return err_string(err);
+}
+
 ZkClient::ZkClient(const std::string& servers, int timeout)
     : servers_(servers),
       timeout_(timeout),
