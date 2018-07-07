@@ -29,6 +29,21 @@ void test_async_set()
     cli->async_set("/test_zkcli", "new data", cb);
 }
 
+void test_async_get_child()
+{
+    StringsCallback cb = [](int code, StringVectorPtr strings) {
+        LOG_DEBUG("async get child code = %s", err_string(code));
+        if (code != ZOK) {
+            return;
+        }
+
+        for (auto it = strings->begin(); it != strings->end(); ++it) {
+            LOG_DEBUG("child %s", it->c_str());
+        }
+    };
+    cli->async_get_children("/", 0, cb);
+}
+
 void test_async_get()
 {
     StringCallback cb = [](int code, const Slice& data) {
@@ -64,6 +79,7 @@ int main(int argc, char* argv[])
         test_async_set();
         test_async_get();
         test_async_exists();
+        test_async_get_child();
 
     });
 

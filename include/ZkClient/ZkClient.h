@@ -40,8 +40,12 @@ public:
     void async_set(const std::string& path, const Slice& data, const AsyncCallback& cb);
 
     void async_exists(const std::string& path, int watch, const ExistsCallback& cb);
+    
+    void async_get_children(const std::string& path, int watch, const StringsCallback& cb);
 
     void subscribe_data_changes(const std::string& path, const StringCallback& cb);
+    
+    void subscribe_child_changes();
 
 private:
 
@@ -57,8 +61,11 @@ private:
 
     static void stat_completion(int rc, const struct Stat* stat, const void* data);
 
+    static void strings_completion(int rc, const struct String_vector *strings, const void *data);
+
     void do_subscribe_data_changes(const std::string& path);
 
+    void do_subscribe_child_changes(const std::string& path);
 private:
     std::string servers_;
     int timeout_;

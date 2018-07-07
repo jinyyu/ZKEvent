@@ -246,12 +246,30 @@ void ZkClient::async_exists(const std::string& path, int watch, const ExistsCall
     });
 }
 
+void ZkClient::async_get_children(const std::string& path, int watch, const StringsCallback& cb)
+{
+    run_in_loop([this, path, watch, cb]() {
+        StringsCallback* callback = new StringsCallback(cb);
+        int ret = zoo_aget_children(zk_, path.c_str(), watch, ZkClient::strings_completion, callback);
+        if (ret != ZOK) {
+            cb(ret, nullptr);
+            delete (callback);
+        }
+    });
+
+}
+
 void ZkClient::subscribe_data_changes(const std::string& path, const StringCallback& cb)
 {
     run_in_loop([this, path, cb]() {
         data_changes_cb_[path] = cb;
         do_subscribe_data_changes(path);
     });
+}
+
+void ZkClient::subscribe_child_changes()
+{
+
 }
 
 void ZkClient::string_completion(int rc, const char* value, const void* data)
@@ -284,6 +302,23 @@ void ZkClient::stat_completion(int rc, const struct Stat* stat, const void* data
     delete (cb);
 }
 
+void ZkClient::strings_completion(int rc, const struct String_vector* strings, const void* data)
+{
+    StringsCallback* cb = (StringsCallback*) data;
+    if (rc != ZOK) {
+        cb->operator()(rc, nullptr);
+    }
+    else {
+        StringVectorPtr string_list(new std::vector<std::string>());
+
+        for (auto i = 0; i < strings->count; ++i) {
+            string_list->push_back(strings->data[i]);
+        }
+        cb->operator()(rc, string_list);
+    }
+    delete (cb);
+}
+
 void ZkClient::do_subscribe_data_changes(const std::string& path)
 {
     assert(thread_id_ == pthread_self());
@@ -302,6 +337,12 @@ void ZkClient::do_subscribe_data_changes(const std::string& path)
         }
     };
     async_exists(path, 1, cb);
+}
+
+void ZkClient::do_subscribe_child_changes(const std::string& path)
+{
+    assert(thread_id_ == pthread_self());
+
 }
 
 }
