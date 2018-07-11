@@ -65,7 +65,7 @@ ZkClient::ZkClient(const std::string& servers, int timeout)
       zk_(nullptr),
       client_id_(nullptr),
       running_(true),
-      thread_id_(pthread_self())
+      thread_id_(0)
 {
     //disable log
     //zoo_set_debug_level((ZooLogLevel) 0);
@@ -85,6 +85,10 @@ void ZkClient::set_session_expired_callback(const VoidCallback& cb)
 
 ZkClient::~ZkClient()
 {
+    stop();
+    if (event_thread_.joinable()) {
+        event_thread_.joinable();
+    }
     if (zk_) {
         zookeeper_close(zk_);
     }
@@ -92,24 +96,26 @@ ZkClient::~ZkClient()
 
 void ZkClient::run()
 {
-    thread_id_ = pthread_self();
+    event_thread_ = std::thread([this](){
+        thread_id_ = pthread_self();
 
-    while (running_) {
-        VoidCallback cb;
-        {
-            std::unique_lock<std::mutex> lock(mutex_);
-            while (pending_callbacks_.empty()) {
-                if (!running_) {
-                    return;
+        while (running_) {
+            VoidCallback cb;
+            {
+                std::unique_lock<std::mutex> lock(mutex_);
+                while (pending_callbacks_.empty()) {
+                    cv_.wait(lock);
+                    if (!running_) {
+                        return;
+                    }
                 }
-                cv_.wait(lock);
+                cb = pending_callbacks_.front();
+                pending_callbacks_.pop_front();
             }
-            cb = pending_callbacks_.front();
-            pending_callbacks_.pop_front();
+            cb();
         }
-        cb();
-    }
-    LOG_DEBUG("loop exit");
+        LOG_DEBUG("loop exit");
+    });
 }
 
 void ZkClient::stop()

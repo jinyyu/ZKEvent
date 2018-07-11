@@ -18,15 +18,16 @@ public:
 
     ~Subscriber()
     {
-
+        
     }
 
     void init_zk_client()
     {
-        auto zk = ZkClientPtr(new ZkClient(server_, timeout_));
+        ZkClient* zk = new ZkClient(server_, timeout_);
         zk->set_connected_callback([zk, this]() {
-            LOG_DEBUG("connected");
-            zk_ = zk;
+            LOG_DEBUG("connected");\
+            ZkClientPtr p(zk);
+            zk_ = p;
             this->subscriber_data_changes();
         });
 
@@ -35,11 +36,8 @@ public:
             this->init_zk_client();
         });
         zk->start_connect();
-
-        std::thread t([zk]() {
-            zk->run();
-        });
-        t.detach();
+        
+        zk->run();
     }
 
 private:

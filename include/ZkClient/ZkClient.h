@@ -75,6 +75,7 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
     std::deque<VoidCallback> pending_callbacks_;
+    std::thread event_thread_;
 
     zhandle_t* zk_;
 
