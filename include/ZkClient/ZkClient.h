@@ -45,7 +45,7 @@ public:
 
     void subscribe_data_changes(const std::string& path, const StringCallback& cb);
     
-    void subscribe_child_changes();
+    void subscribe_child_changes(const std::string& path, const StringsCallback& cb);
 
 private:
 
@@ -81,7 +81,7 @@ private:
 
     const clientid_t* client_id_;
     std::unordered_map<std::string, StringCallback> data_changes_cb_;
-
+    std::unordered_map<std::string, StringsCallback> child_changes_cb_;
     VoidCallback connected_cb_;
     VoidCallback session_expired_cb_;
 };

@@ -96,7 +96,7 @@ ZkClient::~ZkClient()
 
 void ZkClient::run()
 {
-    event_thread_ = std::thread([this](){
+    event_thread_ = std::thread([this]() {
         thread_id_ = pthread_self();
 
         while (running_) {
@@ -177,6 +177,13 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
         if (it != data_changes_cb_.end()) {
             it->second.operator()(ZOK, Slice(path));
             do_subscribe_data_changes(it->first);
+        }
+    }
+
+    if (type == ZOO_CHILD_EVENT) {
+        auto it = child_changes_cb_.find(path);
+        if (it != child_changes_cb_.end()) {
+            async_get_children(path, 1, it->second);
         }
     }
 }
@@ -273,9 +280,12 @@ void ZkClient::subscribe_data_changes(const std::string& path, const StringCallb
     });
 }
 
-void ZkClient::subscribe_child_changes()
+void ZkClient::subscribe_child_changes(const std::string& path, const StringsCallback& cb)
 {
-
+    run_in_loop([this, path, cb]() {
+        child_changes_cb_[path] = cb;
+        do_subscribe_child_changes(path);
+    });
 }
 
 void ZkClient::string_completion(int rc, const char* value, const void* data)
@@ -349,6 +359,20 @@ void ZkClient::do_subscribe_child_changes(const std::string& path)
 {
     assert(thread_id_ == pthread_self());
 
+    StringsCallback cb = [this, path](int err, StringVectorPtr children) {
+        if (err != ZOK) {
+            LOG_DEBUG("subscribe error %s, %s", path.c_str(), err_string(err));
+            auto it = child_changes_cb_.find(path);
+            if (it != child_changes_cb_.end()) {
+                it->second.operator()(err, nullptr);
+                child_changes_cb_.erase(path);
+            }
+        }
+        else {
+            LOG_DEBUG("subscribe success %s", path.c_str());
+        }
+    };
+    async_get_children(path, 1, cb);
 }
 
 }
