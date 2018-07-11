@@ -25,7 +25,7 @@ public:
     {
         ZkClient* zk = new ZkClient(server_, timeout_);
         zk->set_connected_callback([zk, this]() {
-            LOG_DEBUG("connected");\
+            LOG_DEBUG("connected");
             ZkClientPtr p(zk);
             zk_ = p;
             this->subscriber_data_changes();
