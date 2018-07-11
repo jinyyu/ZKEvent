@@ -87,7 +87,7 @@ ZkClient::~ZkClient()
 {
     stop();
     if (event_thread_.joinable()) {
-        event_thread_.joinable();
+        event_thread_.join();
     }
     if (zk_) {
         zookeeper_close(zk_);

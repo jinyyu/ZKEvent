@@ -1,7 +1,7 @@
 #include <ZkClient/ZkClient.h>
 #include <ZkClient/DebugLog.h>
 #include <memory>
-
+#include <unistd.h>
 using namespace zkcli;
 
 typedef std::shared_ptr<ZkClient> ZkClientPtr;
@@ -18,7 +18,7 @@ public:
 
     ~Subscriber()
     {
-        
+
     }
 
     void init_zk_client()
@@ -36,7 +36,7 @@ public:
             this->init_zk_client();
         });
         zk->start_connect();
-        
+
         zk->run();
     }
 
@@ -77,5 +77,6 @@ int main(int argc, char* argv[])
 {
     Subscriber subscriber("127.0.0.1:2181", 5000);
     subscriber.init_zk_client();
-    getchar();
+    sleep(10);
+    //getchar();
 }
