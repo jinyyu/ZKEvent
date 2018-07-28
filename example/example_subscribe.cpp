@@ -5,6 +5,7 @@
 using namespace zkcli;
 
 typedef std::shared_ptr<ZkClient> ZkClientPtr;
+class Subscriber* g_subscriber;
 
 class Subscriber
 {
@@ -12,9 +13,26 @@ public:
     explicit Subscriber(boost::asio::io_service& io_service, const std::string& server, int timeout)
         : server_(server),
           timeout_(timeout),
-          io_service_(io_service)
+          io_service_(io_service),
+          timer_(io_service)
     {
+        start_timer();
+    }
 
+    void start_timer()
+    {
+        timer_.expires_from_now(boost::posix_time::seconds(5));
+        timer_.async_wait([this](const boost::system::error_code& err) {
+            this->handle_timeout(err);
+        });
+    }
+
+    void handle_timeout(const boost::system::error_code& err){
+        if (err) {
+            LOG_DEBUG("async error %s", err.message().c_str());
+            return;
+        }
+        start_timer();
     }
 
     ~Subscriber()
@@ -24,18 +42,19 @@ public:
 
     void init_zk_client()
     {
+        LOG_DEBUG("init zk client");
         ZkClient* zk = new ZkClient(io_service_, server_, timeout_);
         zk->set_connected_callback([zk, this]() {
             LOG_DEBUG("connected");
             ZkClientPtr p(zk);
             zk_ = p;
             this->subscriber_data_changes();
-            this->subscriber_child_changes();
+            //this->subscriber_child_changes();
         });
 
-        zk->set_session_expired_callback([this]() {
+        zk->set_session_expired_callback([]() {
             LOG_DEBUG("session expired")
-            this->init_zk_client();
+            g_subscriber->init_zk_client();
         });
         zk->start_connect();
     }
@@ -43,31 +62,14 @@ public:
 private:
     void subscriber_data_changes()
     {
-        zk_->subscribe_data_changes("/test_zkcli", [this](int err, const Slice& data) {
+        const char* path = "/test";;
+        zk_->subscribe_data_changes(path, [this, path](int err) {
+            LOG_DEBUG("")
             if (err != ZOK) {
                 LOG_DEBUG("subscribe data error %s", ZkClient::err_to_string(err));
                 return;
             }
-            std::string path(data.data(), data.size());
-            zk_->async_get(path, 0, [path, this](int err, const Slice& data) {
-                if (err != ZOK) {
-                    LOG_DEBUG("async get  error %s", ZkClient::err_to_string(err));
-                    return;
-                }
-                this->on_data_changes(path, data);
-            });
-        });
-    }
-
-    void subscriber_child_changes()
-    {
-        const char* path = "/test_zkcli";
-        zk_->subscribe_child_changes("/test_zkcli", [this, path](int err, StringVectorPtr strings) {
-            if (err != ZOK) {
-                LOG_DEBUG("subscribe data error %s", ZkClient::err_to_string(err));
-                return;
-            }
-            this->on_child_changes(path, strings);
+            LOG_DEBUG("data changes %s", path)
         });
     }
 
@@ -77,16 +79,9 @@ private:
         LOG_DEBUG("data changes path = %s, data = %s", path.c_str(), data.data());
     }
 
-    void on_child_changes(const std::string& path, StringVectorPtr child)
-    {
-        LOG_DEBUG("child changed path = %s", path.c_str());
-
-        for (auto it = child->begin(); it != child->end(); ++it) {
-            LOG_DEBUG("path = %s", it->c_str());
-        }
-    }
 private:
 
+    boost::asio::deadline_timer timer_;
     std::string server_;
     int timeout_;
     ZkClientPtr zk_;
@@ -97,11 +92,7 @@ private:
 int main(int argc, char* argv[])
 {
     boost::asio::io_service io_service;
-    Subscriber subscriber(io_service, "127.0.0.1:2181", 5000);
-    subscriber.init_zk_client();
-    while (true)
-    {
-        io_service.run();
-        usleep(1000* 100);
-    }
+    g_subscriber = new Subscriber(io_service, "127.0.0.1:2181", 5000);
+    g_subscriber->init_zk_client();
+    io_service.run();
 }

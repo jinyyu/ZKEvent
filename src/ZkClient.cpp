@@ -68,7 +68,7 @@ ZkClient::ZkClient(boost::asio::io_service& io_service, const std::string& serve
       thread_id_(0)
 {
     //disable log
-    //zoo_set_debug_level((ZooLogLevel) 0);
+    zoo_set_debug_level((ZooLogLevel) 0);
 }
 
 ZkClient::~ZkClient()
@@ -107,8 +107,9 @@ void ZkClient::run_in_loop(const VoidCallback& cb)
 {
     if (pthread_self() == thread_id_) {
         cb();
+    } else {
+        io_service_.post(cb);
     }
-    io_service_.post(cb);
 }
 
 void ZkClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx)
@@ -122,7 +123,7 @@ void ZkClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path,
 
 void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::string& path)
 {
-    LOG_DEBUG("state %s, %s, %s", zk_state_to_str(state), zk_type_to_str(type), path.c_str())
+    LOG_DEBUG("state %s, type = %s, path = %s", zk_state_to_str(state), zk_type_to_str(type), path.c_str())
 
     if (type == ZOO_SESSION_EVENT && state == ZOO_CONNECTED_STATE) {
         thread_id_ = pthread_self();
@@ -137,10 +138,14 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
         return;
     }
 
-    if (type == ZOO_CREATED_EVENT || type == ZOO_DELETED_EVENT || type == ZOO_CHANGED_EVENT) {
+    if (path.empty()) {
+        return;
+    }
+
+    if (type == ZOO_CHANGED_EVENT) {
         auto it = data_changes_cb_.find(path);
         if (it != data_changes_cb_.end()) {
-            it->second.operator()(ZOK, Slice(path));
+            it->second.operator()(ZOK);
             do_subscribe_data_changes(it->first);
         }
     }
@@ -214,7 +219,6 @@ void ZkClient::async_exists(const std::string& path, int watch, const ExistsCall
             else {
                 cb(err, false);
             }
-
         });
         int ret = zoo_aexists(zk_, path.c_str(), watch, ZkClient::stat_completion, callback);
         if (ret != ZOK) {
@@ -237,7 +241,7 @@ void ZkClient::async_get_children(const std::string& path, int watch, const Stri
 
 }
 
-void ZkClient::subscribe_data_changes(const std::string& path, const StringCallback& cb)
+void ZkClient::subscribe_data_changes(const std::string& path, const AsyncCallback& cb)
 {
     run_in_loop([this, path, cb]() {
         data_changes_cb_[path] = cb;
@@ -304,27 +308,27 @@ void ZkClient::do_subscribe_data_changes(const std::string& path)
 {
     assert(thread_id_ == pthread_self());
 
-    ExistsCallback cb = [this, path](int err, bool exists) {
+    async_exists(path, 1, [this, path](int err, bool exists) {
         if (err != ZOK) {
             LOG_DEBUG("subscribe error %s, %s", path.c_str(), err_string(err));
             auto it = data_changes_cb_.find(path);
             if (it != data_changes_cb_.end()) {
-                it->second.operator()(err, Slice(nullptr, 0));
+                it->second.operator()(err);
                 data_changes_cb_.erase(path);
             }
+            return;
         }
         else {
-            LOG_DEBUG("subscribe success %s", path.c_str());
+            LOG_DEBUG("subscribe data changes success %s", path.c_str());
         }
-    };
-    async_exists(path, 1, cb);
+    });
 }
 
 void ZkClient::do_subscribe_child_changes(const std::string& path)
 {
     assert(thread_id_ == pthread_self());
 
-    StringsCallback cb = [this, path](int err, StringVectorPtr children) {
+    async_get_children(path, 1, [this, path](int err, StringVectorPtr children) {
         if (err != ZOK) {
             LOG_DEBUG("subscribe error %s, %s", path.c_str(), err_string(err));
             auto it = child_changes_cb_.find(path);
@@ -336,8 +340,7 @@ void ZkClient::do_subscribe_child_changes(const std::string& path)
         else {
             LOG_DEBUG("subscribe success %s", path.c_str());
         }
-    };
-    async_get_children(path, 1, cb);
+    });
 }
 
 }

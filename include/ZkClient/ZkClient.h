@@ -36,7 +36,7 @@ public:
     
     void async_get_children(const std::string& path, int watch, const StringsCallback& cb);
 
-    void subscribe_data_changes(const std::string& path, const StringCallback& cb);
+    void subscribe_data_changes(const std::string& path, const AsyncCallback& cb);
     
     void subscribe_child_changes(const std::string& path, const StringsCallback& cb);
 
@@ -68,7 +68,7 @@ private:
     zhandle_t* zk_;
 
     const clientid_t* client_id_;
-    std::unordered_map<std::string, StringCallback> data_changes_cb_;
+    std::unordered_map<std::string, AsyncCallback> data_changes_cb_;
     std::unordered_map<std::string, StringsCallback> child_changes_cb_;
     VoidCallback connected_cb_;
     VoidCallback session_expired_cb_;
