@@ -37,6 +37,8 @@ public:
     void async_get_children(const std::string& path, int watch, const StringsCallback& cb);
 
     void subscribe_data_changes(const std::string& path, const DataChangesCallback& cb);
+
+    void unsubscribe_data_changes(const std::string& path);
     
     void subscribe_child_changes(const std::string& path, const StringsCallback& cb);
 

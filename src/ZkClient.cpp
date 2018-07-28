@@ -263,6 +263,15 @@ void ZkClient::subscribe_data_changes(const std::string& path, const DataChanges
     });
 }
 
+void ZkClient::unsubscribe_data_changes(const std::string& path)
+{
+    run_in_loop([this, path]() {
+        if (data_changes_cb_.find(path) != data_changes_cb_.end()) {
+            data_changes_cb_.erase(path);
+        }
+    });
+}
+
 void ZkClient::subscribe_child_changes(const std::string& path, const StringsCallback& cb)
 {
     run_in_loop([this, path, cb]() {
