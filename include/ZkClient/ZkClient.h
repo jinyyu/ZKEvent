@@ -4,11 +4,8 @@
 #include <zookeeper/zookeeper.h>
 #include <ZkClient/AsyncCallback.h>
 #include <ZkClient/errors.h>
-#include <mutex>
-#include <condition_variable>
 #include <unordered_map>
-#include <deque>
-#include <thread>
+#include <boost/asio.hpp>
 
 
 namespace zkcli
@@ -19,7 +16,7 @@ class ZkClient
 public:
     static const char* err_to_string(int err);
 
-    explicit ZkClient(const std::string& servers, int timeout);
+    explicit ZkClient(boost::asio::io_service& io_service, const std::string& servers, int timeout);
 
     void set_connected_callback(const VoidCallback& cb);
 
@@ -28,10 +25,6 @@ public:
     void start_connect();
 
     ~ZkClient();
-
-    void run();
-
-    void stop();
 
     void async_create(const std::string& path, const Slice& data, const StringCallback& cb);
 
@@ -71,11 +64,6 @@ private:
     int timeout_;
 
     pthread_t thread_id_;
-    volatile bool running_;
-    std::mutex mutex_;
-    std::condition_variable cv_;
-    std::deque<VoidCallback> pending_callbacks_;
-    std::thread event_thread_;
 
     zhandle_t* zk_;
 
@@ -84,6 +72,7 @@ private:
     std::unordered_map<std::string, StringsCallback> child_changes_cb_;
     VoidCallback connected_cb_;
     VoidCallback session_expired_cb_;
+    boost::asio::io_service& io_service_;
 };
 
 }

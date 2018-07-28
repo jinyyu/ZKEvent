@@ -28,6 +28,13 @@ target_link_libraries(zkclient
                       pthread
                       zookeeper_mt)
 
+
+find_package(Boost COMPONENTS system thread)
+if (Boost_FOUND)
+    set(LIBS
+        ${LIBS} Boost::system Boost::thread)
+endif (Boost_FOUND)
+
 add_subdirectory(example)
 
 find_package(PkgConfig REQUIRED)

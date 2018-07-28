@@ -9,9 +9,10 @@ typedef std::shared_ptr<ZkClient> ZkClientPtr;
 class Subscriber
 {
 public:
-    explicit Subscriber(const std::string& server, int timeout)
+    explicit Subscriber(boost::asio::io_service& io_service, const std::string& server, int timeout)
         : server_(server),
-          timeout_(timeout)
+          timeout_(timeout),
+          io_service_(io_service)
     {
 
     }
@@ -23,7 +24,7 @@ public:
 
     void init_zk_client()
     {
-        ZkClient* zk = new ZkClient(server_, timeout_);
+        ZkClient* zk = new ZkClient(io_service_, server_, timeout_);
         zk->set_connected_callback([zk, this]() {
             LOG_DEBUG("connected");
             ZkClientPtr p(zk);
@@ -37,8 +38,6 @@ public:
             this->init_zk_client();
         });
         zk->start_connect();
-
-        zk->run();
     }
 
 private:
@@ -91,13 +90,18 @@ private:
     std::string server_;
     int timeout_;
     ZkClientPtr zk_;
+    boost::asio::io_service& io_service_;
 
 };
 
 int main(int argc, char* argv[])
 {
-    Subscriber subscriber("127.0.0.1:2181", 5000);
+    boost::asio::io_service io_service;
+    Subscriber subscriber(io_service, "127.0.0.1:2181", 5000);
     subscriber.init_zk_client();
-    sleep(10000);
-    //getchar();
+    while (true)
+    {
+        io_service.run();
+        usleep(1000* 100);
+    }
 }

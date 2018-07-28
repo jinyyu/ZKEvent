@@ -59,70 +59,38 @@ const char* ZkClient::err_to_string(int err)
     return err_string(err);
 }
 
-ZkClient::ZkClient(const std::string& servers, int timeout)
-    : servers_(servers),
+ZkClient::ZkClient(boost::asio::io_service& io_service, const std::string& servers, int timeout)
+    : io_service_(io_service),
+      servers_(servers),
       timeout_(timeout),
       zk_(nullptr),
       client_id_(nullptr),
-      running_(true),
       thread_id_(0)
 {
     //disable log
     //zoo_set_debug_level((ZooLogLevel) 0);
 }
 
+ZkClient::~ZkClient()
+{
+    zookeeper_close(zk_);
+}
+
 void ZkClient::set_connected_callback(const VoidCallback& cb)
 {
-    std::unique_lock<std::mutex> lock(mutex_);
-    connected_cb_ = cb;
+    run_in_loop([cb, this]{
+        connected_cb_ = cb;
+    });
+
 }
 
 void ZkClient::set_session_expired_callback(const VoidCallback& cb)
 {
-    std::unique_lock<std::mutex> lock(mutex_);
-    session_expired_cb_ = cb;
-}
-
-ZkClient::~ZkClient()
-{
-    stop();
-    if (event_thread_.joinable()) {
-        event_thread_.join();
-    }
-    if (zk_) {
-        zookeeper_close(zk_);
-    }
-}
-
-void ZkClient::run()
-{
-    event_thread_ = std::thread([this]() {
-        thread_id_ = pthread_self();
-
-        while (running_) {
-            VoidCallback cb;
-            {
-                std::unique_lock<std::mutex> lock(mutex_);
-                while (pending_callbacks_.empty()) {
-                    cv_.wait(lock);
-                    if (!running_) {
-                        return;
-                    }
-                }
-                cb = pending_callbacks_.front();
-                pending_callbacks_.pop_front();
-            }
-            cb();
-        }
-        LOG_DEBUG("loop exit");
+    run_in_loop([cb, this](){
+        session_expired_cb_ = cb;
     });
 }
 
-void ZkClient::stop()
-{
-    running_ = false;
-    cv_.notify_one();
-}
 
 void ZkClient::start_connect()
 {
@@ -140,11 +108,7 @@ void ZkClient::run_in_loop(const VoidCallback& cb)
     if (pthread_self() == thread_id_) {
         cb();
     }
-    else {
-        std::lock_guard<std::mutex> guard(mutex_);
-        pending_callbacks_.push_back(cb);
-        cv_.notify_one();
-    }
+    io_service_.post(cb);
 }
 
 void ZkClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx)
@@ -161,6 +125,7 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
     LOG_DEBUG("state %s, %s, %s", zk_state_to_str(state), zk_type_to_str(type), path.c_str())
 
     if (type == ZOO_SESSION_EVENT && state == ZOO_CONNECTED_STATE) {
+        thread_id_ = pthread_self();
         client_id_ = zoo_client_id(zh);
         if (connected_cb_) {
             connected_cb_();

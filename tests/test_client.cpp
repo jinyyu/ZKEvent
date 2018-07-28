@@ -7,10 +7,6 @@ using namespace zkcli;
 
 ZkClient* cli;
 
-std::mutex g_mutex;
-
-std::condition_variable g_cv;
-
 void test_async_create()
 {
     StringCallback cb = [](int code, const Slice& data) {
@@ -71,7 +67,8 @@ void on_data_changes(int err, const Slice& data)
 
 int main(int argc, char* argv[])
 {
-    cli = new ZkClient("localhost:2181", 10);
+    boost::asio::io_service io_service;
+    cli = new ZkClient(io_service, "localhost:2181", 10);
 
     cli->set_connected_callback([]() {
         cli->subscribe_data_changes("/test_zkcli", on_data_changes);
@@ -85,19 +82,11 @@ int main(int argc, char* argv[])
 
     cli->set_session_expired_callback([]() {
         LOG_DEBUG("SESSION TIME OUT")
-        g_cv.notify_one();
     });
-
-
-    std::thread t1([](){
-        sleep(10);
-        cli->stop();
-    });
-    t1.detach();
 
     cli->start_connect();
 
-    cli->run();
+    io_service.run();
 
     delete (cli);
     LOG_DEBUG("exit");
