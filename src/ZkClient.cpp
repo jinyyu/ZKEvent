@@ -78,7 +78,7 @@ ZkClient::~ZkClient()
 
 void ZkClient::set_connected_callback(const VoidCallback& cb)
 {
-    run_in_loop([cb, this]{
+    run_in_loop([cb, this] {
         connected_cb_ = cb;
     });
 
@@ -86,11 +86,10 @@ void ZkClient::set_connected_callback(const VoidCallback& cb)
 
 void ZkClient::set_session_expired_callback(const VoidCallback& cb)
 {
-    run_in_loop([cb, this](){
+    run_in_loop([cb, this]() {
         session_expired_cb_ = cb;
     });
 }
-
 
 void ZkClient::start_connect()
 {
@@ -107,7 +106,8 @@ void ZkClient::run_in_loop(const VoidCallback& cb)
 {
     if (pthread_self() == thread_id_) {
         cb();
-    } else {
+    }
+    else {
         io_service_.post(cb);
     }
 }
@@ -142,10 +142,24 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
         return;
     }
 
-    if (type == ZOO_CHANGED_EVENT) {
+    if (type == ZOO_CHANGED_EVENT || type == ZOO_DELETED_EVENT || type == ZOO_CREATED_EVENT) {
         auto it = data_changes_cb_.find(path);
         if (it != data_changes_cb_.end()) {
-            it->second.operator()(ZOK);
+            DataChangesEvent event;
+            if (type == ZOO_CHANGED_EVENT) {
+                event = DataChangesEvent::CHANGES;
+            }
+            else if (type == ZOO_DELETED_EVENT) {
+                event = DataChangesEvent::DELETE;
+            }
+            else if (type == ZOO_CREATED_EVENT) {
+                event = DataChangesEvent::CREATE;
+            }
+            else {
+                event = DataChangesEvent::ERROR;
+            }
+
+            it->second.operator()(ZOK, event);
             do_subscribe_data_changes(it->first);
         }
     }
@@ -241,7 +255,7 @@ void ZkClient::async_get_children(const std::string& path, int watch, const Stri
 
 }
 
-void ZkClient::subscribe_data_changes(const std::string& path, const AsyncCallback& cb)
+void ZkClient::subscribe_data_changes(const std::string& path, const DataChangesCallback& cb)
 {
     run_in_loop([this, path, cb]() {
         data_changes_cb_[path] = cb;
@@ -313,7 +327,7 @@ void ZkClient::do_subscribe_data_changes(const std::string& path)
             LOG_DEBUG("subscribe error %s, %s", path.c_str(), err_string(err));
             auto it = data_changes_cb_.find(path);
             if (it != data_changes_cb_.end()) {
-                it->second.operator()(err);
+                it->second.operator()(err, DataChangesEvent::ERROR);
                 data_changes_cb_.erase(path);
             }
             return;
@@ -338,7 +352,7 @@ void ZkClient::do_subscribe_child_changes(const std::string& path)
             }
         }
         else {
-            LOG_DEBUG("subscribe success %s", path.c_str());
+            LOG_DEBUG("subscribe child success %s", path.c_str());
         }
     });
 }

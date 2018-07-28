@@ -12,17 +12,30 @@ namespace zkcli
 
 typedef std::function<void()> VoidCallback;
 
-typedef std::function<void(int err,const Stat* state)> StateCallback;
+typedef std::function<void(int err, const Stat* state)> StateCallback;
 
 typedef std::function<void(int err)> AsyncCallback;
 
-typedef std::function<void(int err,const Slice&)> StringCallback;
+typedef std::function<void(int err, const Slice&)> StringCallback;
 
 typedef std::function<void(int err, bool exists)> ExistsCallback;
 
 typedef std::shared_ptr<std::vector<std::string>> StringVectorPtr;
 
 typedef std::function<void(int err, StringVectorPtr strings)> StringsCallback;
+
+enum DataChangesEvent
+{
+    ERROR = 0,
+    CREATE = 1,
+    CHANGES = 2,
+    DELETE = 3
+
+};
+
+typedef std::function<void(int err, DataChangesEvent event)> DataChangesCallback;
+
+
 
 }
 

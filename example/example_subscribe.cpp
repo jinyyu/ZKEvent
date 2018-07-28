@@ -49,7 +49,7 @@ public:
             ZkClientPtr p(zk);
             zk_ = p;
             this->subscriber_data_changes();
-            //this->subscriber_child_changes();
+            this->subscribe_child_changes();
         });
 
         zk->set_session_expired_callback([]() {
@@ -62,22 +62,57 @@ public:
 private:
     void subscriber_data_changes()
     {
-        const char* path = "/test";;
-        zk_->subscribe_data_changes(path, [this, path](int err) {
-            LOG_DEBUG("")
+        const char* path = "/test";
+        zk_->subscribe_data_changes(path, [this, path](int err, DataChangesEvent event) {
             if (err != ZOK) {
                 LOG_DEBUG("subscribe data error %s", ZkClient::err_to_string(err));
                 return;
+            }
+
+            switch (event) {
+                case CREATE:{
+                    LOG_DEBUG("path create %s", path);
+                    break;
+                }
+                case CHANGES: {
+                    LOG_DEBUG("path data changes %s", path);
+                    break;
+                }
+                case DELETE: {
+                    LOG_DEBUG("path delete %s", path);
+                    break;
+                }
+                default:
+                    LOG_DEBUG("unknown envet %d", event);
+                    break;
             }
             LOG_DEBUG("data changes %s", path)
         });
     }
 
-
-    void on_data_changes(const std::string& path, const Slice& data)
+    void subscribe_child_changes()
     {
-        LOG_DEBUG("data changes path = %s, data = %s", path.c_str(), data.data());
+        const char* path = "/test";
+        zk_->subscribe_child_changes(path, [path, this](int err, StringVectorPtr strings) {
+            if (err != ZOK) {
+                LOG_DEBUG("subscribe child changes error %s", ZkClient::err_to_string(err))
+                return;
+            }
+
+            if (!strings) {
+                LOG_DEBUG("not child");
+                return;
+            }
+
+            for(std::string& p : *strings) {
+                LOG_DEBUG("child = %s", p.c_str());
+
+            }
+        });
+
     }
+
+
 
 private:
 
