@@ -59,10 +59,9 @@ void test_async_exists()
     cli->async_exists("/test_zkcli", 0, cb);
 }
 
-void on_data_changes(int err, const Slice& data)
+void on_data_changes(int err, DataChangesEvent event)
 {
-    std::string str(data.data(), data.size());
-    LOG_DEBUG("data changes %s", str.c_str());
+
 }
 
 int main(int argc, char* argv[])

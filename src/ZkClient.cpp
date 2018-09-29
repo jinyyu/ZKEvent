@@ -158,9 +158,8 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
             else {
                 event = DataChangesEvent::ERROR;
             }
-
-            it->second.operator()(ZOK, event);
             do_subscribe_data_changes(it->first);
+            it->second.operator()(ZOK, event);
         }
     }
 
