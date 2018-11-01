@@ -9,14 +9,13 @@ include_directories(${HEADER_DIR})
 
 set(zkclient_HEADERS
     ${HEADER_DIR}/ZkClient/Slice.h
-    ${HEADER_DIR}/ZkClient/AsyncCallback.h
-    ${HEADER_DIR}/ZkClient/ZkClient.h
+    ${HEADER_DIR}/ZkClient/Callback.h
+    ${HEADER_DIR}/ZkClient/ZKClient.h
     )
 
 set(zkclient_SRCS
-    src/DebugLog.cpp
-    src/ZkClient.cpp
-    src/errors.cpp
+    src/ZKClient.cpp
+    src/ClientImpl.cpp
     )
 
 

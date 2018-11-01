@@ -1,6 +1,6 @@
 #include <assert.h>
-#include "ZkClient/ZkClient.h"
-#include "ZkClient/DebugLog.h"
+#include "ZkClient/ZKClient.h"
+#include "DebugLog.h"
 
 namespace zkcli
 {
@@ -54,12 +54,15 @@ const char* zk_type_to_str(int type)
     return "INVALID_TYPE";
 }
 
-const char* ZkClient::err_to_string(int err)
+const char* ZKClient::err_to_string(int err)
 {
     return err_string(err);
 }
 
-ZkClient::ZkClient(boost::asio::io_service& io_service, const std::string& servers, int timeout)
+
+
+
+ZKClient::ZKClient(boost::asio::io_service& io_service, const std::string& servers, int timeout)
     : io_service_(io_service),
       servers_(servers),
       timeout_(timeout),
@@ -71,12 +74,12 @@ ZkClient::ZkClient(boost::asio::io_service& io_service, const std::string& serve
     zoo_set_debug_level((ZooLogLevel) 0);
 }
 
-ZkClient::~ZkClient()
+ZKClient::~ZKClient()
 {
     zookeeper_close(zk_);
 }
 
-void ZkClient::set_connected_callback(const VoidCallback& cb)
+void ZKClient::set_connected_callback(const VoidCallback& cb)
 {
     run_in_loop([cb, this] {
         connected_cb_ = cb;
@@ -84,17 +87,17 @@ void ZkClient::set_connected_callback(const VoidCallback& cb)
 
 }
 
-void ZkClient::set_session_expired_callback(const VoidCallback& cb)
+void ZKClient::set_session_expired_callback(const VoidCallback& cb)
 {
     run_in_loop([cb, this]() {
         session_expired_cb_ = cb;
     });
 }
 
-void ZkClient::start_connect()
+void ZKClient::start_connect()
 {
     run_in_loop([this]() {
-        zk_ = zookeeper_init(servers_.c_str(), ZkClient::zk_event_cb, timeout_, client_id_, this, 0);
+        zk_ = zookeeper_init(servers_.c_str(), ZKClient::zk_event_cb, timeout_, client_id_, this, 0);
         if (!zk_) {
             LOG_DEBUG("zookeeper_init error %s", strerror(errno));
             return;
@@ -102,7 +105,7 @@ void ZkClient::start_connect()
     });
 }
 
-void ZkClient::run_in_loop(const VoidCallback& cb)
+void ZKClient::run_in_loop(const VoidCallback& cb)
 {
     if (pthread_self() == thread_id_) {
         cb();
@@ -112,16 +115,16 @@ void ZkClient::run_in_loop(const VoidCallback& cb)
     }
 }
 
-void ZkClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx)
+void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx)
 {
     std::string path_copy(path);
-    ZkClient* zk = (ZkClient*) watcherCtx;
+    ZKClient* zk = (ZKClient*) watcherCtx;
     zk->run_in_loop([zk, zh, type, state, path_copy]() {
         zk->do_watch_event_cb(zh, type, state, path_copy.c_str());
     });
 }
 
-void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::string& path)
+void ZKClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::string& path)
 {
     LOG_DEBUG("state %s, type = %s, path = %s", zk_state_to_str(state), zk_type_to_str(type), path.c_str())
 
@@ -171,7 +174,7 @@ void ZkClient::do_watch_event_cb(zhandle_t* zh, int type, int state, const std::
     }
 }
 
-void ZkClient::async_create(const std::string& path, const Slice& data, const StringCallback& cb)
+void ZKClient::async_create(const std::string& path, const Slice& data, const StringCallback& cb)
 {
     std::string data_copy(data.data(), data.size());
     run_in_loop([this, path, data_copy, cb]() {
@@ -182,7 +185,7 @@ void ZkClient::async_create(const std::string& path, const Slice& data, const St
                               data_copy.size(),
                               &ZOO_OPEN_ACL_UNSAFE,
                               0,
-                              ZkClient::string_completion,
+                              ZKClient::string_completion,
                               callback);
         if (ret != ZOK) {
             cb((ZOO_ERRORS) ret, Slice(nullptr, 0));
@@ -191,11 +194,11 @@ void ZkClient::async_create(const std::string& path, const Slice& data, const St
     });
 }
 
-void ZkClient::async_get(const std::string& path, int watch, const StringCallback& cb)
+void ZKClient::async_get(const std::string& path, int watch, const StringCallback& cb)
 {
     run_in_loop([path, watch, cb, this]() {
         StringCallback* callback = new StringCallback(cb);
-        int ret = zoo_aget(zk_, path.c_str(), watch, ZkClient::data_completion, callback);
+        int ret = zoo_aget(zk_, path.c_str(), watch, ZKClient::data_completion, callback);
         if (ret != ZOK) {
             cb((ZOO_ERRORS) ret, Slice(nullptr, 0));
             delete (callback);
@@ -203,7 +206,7 @@ void ZkClient::async_get(const std::string& path, int watch, const StringCallbac
     });
 }
 
-void ZkClient::async_set(const std::string& path, const Slice& data, const AsyncCallback& cb)
+void ZKClient::async_set(const std::string& path, const Slice& data, const AsyncCallback& cb)
 {
     std::string data_copy(data.data(), data.size());
     run_in_loop([this, path, cb, data_copy]() {
@@ -211,7 +214,7 @@ void ZkClient::async_set(const std::string& path, const Slice& data, const Async
             cb(err);
         });
         int ret =
-            zoo_aset(zk_, path.c_str(), data_copy.data(), data_copy.size(), -1, ZkClient::stat_completion, callback);
+            zoo_aset(zk_, path.c_str(), data_copy.data(), data_copy.size(), -1, ZKClient::stat_completion, callback);
         if (ret != ZOK) {
             cb(ret);
             delete (callback);
@@ -219,7 +222,7 @@ void ZkClient::async_set(const std::string& path, const Slice& data, const Async
     });
 }
 
-void ZkClient::async_exists(const std::string& path, int watch, const ExistsCallback& cb)
+void ZKClient::async_exists(const std::string& path, int watch, const ExistsCallback& cb)
 {
     run_in_loop([this, path, watch, cb]() {
         StateCallback* callback = new StateCallback([cb](int err, const Stat* state) {
@@ -233,7 +236,7 @@ void ZkClient::async_exists(const std::string& path, int watch, const ExistsCall
                 cb(err, false);
             }
         });
-        int ret = zoo_aexists(zk_, path.c_str(), watch, ZkClient::stat_completion, callback);
+        int ret = zoo_aexists(zk_, path.c_str(), watch, ZKClient::stat_completion, callback);
         if (ret != ZOK) {
             cb(ret, false);
             delete (callback);
@@ -241,11 +244,11 @@ void ZkClient::async_exists(const std::string& path, int watch, const ExistsCall
     });
 }
 
-void ZkClient::async_get_children(const std::string& path, int watch, const StringsCallback& cb)
+void ZKClient::async_get_children(const std::string& path, int watch, const StringsCallback& cb)
 {
     run_in_loop([this, path, watch, cb]() {
         StringsCallback* callback = new StringsCallback(cb);
-        int ret = zoo_aget_children(zk_, path.c_str(), watch, ZkClient::strings_completion, callback);
+        int ret = zoo_aget_children(zk_, path.c_str(), watch, ZKClient::strings_completion, callback);
         if (ret != ZOK) {
             cb(ret, nullptr);
             delete (callback);
@@ -254,7 +257,7 @@ void ZkClient::async_get_children(const std::string& path, int watch, const Stri
 
 }
 
-void ZkClient::subscribe_data_changes(const std::string& path, const DataChangesCallback& cb)
+void ZKClient::subscribe_data_changes(const std::string& path, const DataChangesCallback& cb)
 {
     run_in_loop([this, path, cb]() {
         data_changes_cb_[path] = cb;
@@ -262,7 +265,7 @@ void ZkClient::subscribe_data_changes(const std::string& path, const DataChanges
     });
 }
 
-void ZkClient::unsubscribe_data_changes(const std::string& path)
+void ZKClient::unsubscribe_data_changes(const std::string& path)
 {
     run_in_loop([this, path]() {
         if (data_changes_cb_.find(path) != data_changes_cb_.end()) {
@@ -271,7 +274,7 @@ void ZkClient::unsubscribe_data_changes(const std::string& path)
     });
 }
 
-void ZkClient::subscribe_child_changes(const std::string& path, const StringsCallback& cb)
+void ZKClient::subscribe_child_changes(const std::string& path, const StringsCallback& cb)
 {
     run_in_loop([this, path, cb]() {
         child_changes_cb_[path] = cb;
@@ -279,7 +282,7 @@ void ZkClient::subscribe_child_changes(const std::string& path, const StringsCal
     });
 }
 
-void ZkClient::string_completion(int rc, const char* value, const void* data)
+void ZKClient::string_completion(int rc, const char* value, const void* data)
 {
     StringCallback* cb = (StringCallback*) data;
     Slice result;
@@ -290,7 +293,7 @@ void ZkClient::string_completion(int rc, const char* value, const void* data)
     delete (cb);
 }
 
-void ZkClient::data_completion(int rc, const char* value, int value_len,
+void ZKClient::data_completion(int rc, const char* value, int value_len,
                                const struct Stat* stat, const void* data)
 {
     StringCallback* cb = (StringCallback*) data;
@@ -302,14 +305,14 @@ void ZkClient::data_completion(int rc, const char* value, int value_len,
     delete (cb);
 }
 
-void ZkClient::stat_completion(int rc, const struct Stat* stat, const void* data)
+void ZKClient::stat_completion(int rc, const struct Stat* stat, const void* data)
 {
     StateCallback* cb = (StateCallback*) data;
     cb->operator()(rc, stat);
     delete (cb);
 }
 
-void ZkClient::strings_completion(int rc, const struct String_vector* strings, const void* data)
+void ZKClient::strings_completion(int rc, const struct String_vector* strings, const void* data)
 {
     StringsCallback* cb = (StringsCallback*) data;
     if (rc != ZOK) {
@@ -326,7 +329,7 @@ void ZkClient::strings_completion(int rc, const struct String_vector* strings, c
     delete (cb);
 }
 
-void ZkClient::do_subscribe_data_changes(const std::string& path)
+void ZKClient::do_subscribe_data_changes(const std::string& path)
 {
     assert(thread_id_ == pthread_self());
 
@@ -346,7 +349,7 @@ void ZkClient::do_subscribe_data_changes(const std::string& path)
     });
 }
 
-void ZkClient::do_subscribe_child_changes(const std::string& path)
+void ZKClient::do_subscribe_child_changes(const std::string& path)
 {
     assert(thread_id_ == pthread_self());
 
@@ -364,5 +367,19 @@ void ZkClient::do_subscribe_child_changes(const std::string& path)
         }
     });
 }
+
+
+
+
+
+}
+
+ZKClient::ZKClient(const std::vector<std::string>& servers)
+{
+
+}
+
+ZKClient::~ZKClient()
+{
 
 }
