@@ -7,7 +7,7 @@ int main(int argc, char* argv[])
     servers.emplace_back("127.0.0.1:2181");
     servers.emplace_back("192.168.242.128:2181");
 
-    ZKClient client(servers);
+    ZKClient client(servers, 5000);
 
 
 }
