@@ -1,27 +1,23 @@
-#include "ZkClient/ZKClient.h"
-#include <boost/algorithm/string.hpp>
-#include "DebugLog.h"
+#include "ZKClient.h"
+#include "ZKEvent/ZKEvent.h"
 
-
-ZKClient::ZKClient(const std::vector<std::string>& servers, int timeout)
-    : timeout_(timeout)
+namespace detail
 {
-    servers_ = boost::join(servers, ",");
-    LOG_DEBUG("servers = %s", servers_.c_str());
+
+ZKClient::ZKClient(ZKEvent* owner)
+    : owner_(owner_),
+      zk_(nullptr)
+{
+
+
 }
 
 ZKClient::~ZKClient()
 {
-
+    if (zk_) {
+        zookeeper_close(zk_);
+    }
 }
 
-
-void ZKClient::on_connected()
-{
-
-}
-
-void ZKClient::on_session_timeout()
-{
 
 }

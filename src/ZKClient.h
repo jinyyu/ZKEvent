@@ -3,18 +3,23 @@
 #include <zookeeper/zookeeper.h>
 
 
-class ZKClient;
-class ClientImpl
+class ZKEvent;
+
+namespace detail
+{
+class ZKClient
 {
 public:
-    explicit ClientImpl(ZKClient* owner);
+    explicit ZKClient(ZKEvent* owner);
 
-    ~ClientImpl();
+    ~ZKClient();
 
 public:
-    ZKClient* owner_;
+    ZKEvent* owner_;
     zhandle_t* zk_;
 };
+
+}
 
 
 #endif //ZKCLIENT_DISTRIBUTION_CLIENTIMPL_H
