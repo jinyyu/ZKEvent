@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <deque>
 #include <sys/epoll.h>
 #include <ZKEvent/Callback.h>
 
@@ -33,10 +34,16 @@ public:
 
     void loop();
 
+    void post_callback(const VoidCallback& cb);
+
 private:
+    void wakeup();
+
+    void setup();
+
     void register_event(detail::Event* e);
 
-    void wakeup();
+    int pull_event(std::vector<detail::Event*>& events);
 
     void on_connected();
 
@@ -52,8 +59,10 @@ private:
     int wakeup_fd_;
     detail::Event* wakeup_event_;
 
-    std::vector<VoidCallback> pending_callback;
+    std::vector<VoidCallback> pending_callback_;
     std::mutex lock_;
+
+    std::deque<VoidCallback> task_queue_;
 
 };
 

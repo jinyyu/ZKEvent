@@ -5,7 +5,7 @@ namespace detail
 {
 
 ZKClient::ZKClient(ZKEvent* owner)
-    : owner_(owner_),
+    : owner_(owner),
       zk_(nullptr)
 {
 

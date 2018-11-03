@@ -25,6 +25,11 @@ public:
         enable_ops(EPOLLIN);
     }
 
+    int fd()
+    {
+        return fd_;
+    }
+
     void set_reading_callback(const VoidCallback& cb)
     {
         read_cb_ = cb;
