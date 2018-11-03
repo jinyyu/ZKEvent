@@ -11,19 +11,13 @@ int main(int argc, char* argv[])
 
     ZKEvent* client = new ZKEvent(servers, 5000);
 
+    client->set_connected_callback([]() {
+        fprintf(stderr, "---------------\n");
+                                   });
+
     std::thread t([client]() {
-        for (int i = 0; i < 10; ++i) {
-            sleep(5);
-            client->post_callback([client]() {
-                fprintf(stderr, "wake up %d\n", pthread_self());
-
-                client->post_callback([](){
-                    fprintf(stderr, "-----wake up %d\n", pthread_self());
-                });
-            });
-
-        }
-        client->stop();
+        sleep(1);
+        client->start_connect();
     });
 
     client->loop();

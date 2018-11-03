@@ -22,7 +22,7 @@ class ZKEvent
 {
 public:
 
-    ZKEvent(const std::vector<std::string>& servers, int timeout);
+    explicit ZKEvent(const std::vector<std::string>& servers, int timeout);
 
     ~ZKEvent();
 
@@ -34,9 +34,17 @@ public:
 
     void loop();
 
+    void start_connect();
+
     void post_callback(const VoidCallback& cb);
 
+    void set_connected_callback(const VoidCallback& cb)
+    {
+        connected_cb_ = cb;
+    }
+
 private:
+
     void wakeup();
 
     void setup();
@@ -51,8 +59,11 @@ private:
 
     volatile bool running_;
     std::string servers_;
+    void* zk_client_id_;
     int timeout_;
+    friend class detail::ZKClient;
     detail::ClientPtr client_;
+
     std::vector<struct epoll_event> events_;
     pthread_t id_;
     int epoll_fd_;
@@ -63,6 +74,8 @@ private:
     std::mutex lock_;
 
     std::deque<VoidCallback> task_queue_;
+
+    VoidCallback connected_cb_;
 
 };
 

@@ -14,9 +14,13 @@ public:
 
     ~ZKClient();
 
-public:
+private:
+    static void zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx);
+
+private:
     ZKEvent* owner_;
     zhandle_t* zk_;
+    const clientid_t* client_id_;
 };
 
 }

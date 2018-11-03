@@ -1,4 +1,5 @@
 #include "ZKEvent/ZKEvent.h"
+#include "ZKClient.h"
 #include "Event.h"
 #include "DebugLog.h"
 #include <unistd.h>
@@ -42,7 +43,7 @@ ZKEvent::~ZKEvent()
 void ZKEvent::setup()
 {
     id_ = pthread_self();
-    LOG_DEBUG("id = %d", id_);
+    LOG_DEBUG("id = %lu", id_);
 
     epoll_fd_ = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd_ == -1) {
@@ -102,6 +103,14 @@ void ZKEvent::loop()
     }
 }
 
+void ZKEvent::start_connect()
+{
+    post_callback([this]() {
+        LOG_DEBUG("start connect");
+        client_ = std::make_shared<detail::ZKClient>(this);
+    });
+}
+
 void ZKEvent::post_callback(const VoidCallback& cb)
 {
     if (id_ == pthread_self()) {
@@ -150,7 +159,9 @@ void ZKEvent::wakeup()
 
 void ZKEvent::on_connected()
 {
-
+    if (connected_cb_) {
+        connected_cb_();
+    }
 }
 
 void ZKEvent::on_session_timeout()
