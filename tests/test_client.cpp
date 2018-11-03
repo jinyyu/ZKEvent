@@ -11,9 +11,23 @@ int main(int argc, char* argv[])
 
     ZKEvent* client = new ZKEvent(servers, 5000);
 
-    client->set_connected_callback([]() {
-        fprintf(stderr, "---------------\n");
+    client->set_connected_callback([client]() {
+        client->get("/test", [](const Status& status, const Slice& data){
+            if (!status.is_ok()) {
+                fprintf(stderr, "----------------------------------------get error %s\n", status.to_string().c_str());
+            } else {
+                fprintf(stderr, "----------------------------------------get ok, %s\n", data.to_string().c_str());
+            }
+        });
                                    });
+
+    client->get("/test", [](const Status& status, const Slice& data){
+        if (!status.is_ok()) {
+            fprintf(stderr, "----------------------------------------get error %s\n", status.to_string().c_str());
+        } else {
+            fprintf(stderr, "----------------------------------------get ok, %s\n", data.to_string().c_str());
+        }
+    });
 
     std::thread t([client]() {
         sleep(1);

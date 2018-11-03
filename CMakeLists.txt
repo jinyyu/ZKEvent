@@ -24,6 +24,7 @@ set(HEADERS
 set(SRCS
     src/ZKEvent.cpp
     src/ZKClient.cpp
+    src/Status.cpp
     src/Event.h)
 
 

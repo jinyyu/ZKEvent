@@ -36,14 +36,16 @@ public:
 
     void start_connect();
 
-    void post_callback(const VoidCallback& cb);
-
     void set_connected_callback(const VoidCallback& cb)
     {
         connected_cb_ = cb;
     }
 
+    void get(const std::string& path, const StringCallback& cb);
+
 private:
+
+    void post_callback(const VoidCallback& cb);
 
     void wakeup();
 
@@ -76,7 +78,6 @@ private:
     std::deque<VoidCallback> task_queue_;
 
     VoidCallback connected_cb_;
-
 };
 
 #endif //ZKCLIENT_DISTRIBUTION_ZKCLIENT_H
