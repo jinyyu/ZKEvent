@@ -3,6 +3,11 @@
 #include <string.h>
 #include "DebugLog.h"
 
+
+int CreateEphemeral = ZOO_EPHEMERAL;
+
+int CreateSequence = ZOO_SEQUENCE;
+
 namespace detail
 {
 
@@ -119,7 +124,7 @@ Status zk_rc_status(int rc)
             return Status::io_error(
                 "attempts to perform a reconfiguration operation when reconfiguration feature is disabled");
     }
-    return Status::io_error("unknown error");
+    return Status::io_error(zerror(rc));
 }
 
 ZKClient::ZKClient(ZKEvent* owner)
@@ -156,6 +161,25 @@ void ZKClient::get(const std::string& path, int watch, const DataCompletion& cb)
     }
 }
 
+void ZKClient::create(const std::string& path, const Slice& data, int flag, const StringCallback& cb)
+{
+    StringCallback* callback = new StringCallback(cb);
+
+    int ret = zoo_acreate(zk_,
+                          path.c_str(),
+                          data.data(),
+                          data.size(),
+                          &ZOO_OPEN_ACL_UNSAFE,
+                          flag,
+                          ZKClient::string_completion,
+                          callback);
+
+    if (ret != ZOK) {
+        cb(zk_rc_status(ret), Slice());
+        delete (callback);
+    }
+}
+
 void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx)
 {
     LOG_DEBUG("state %s, type = %s, path = %s", zk_state_to_str(state), zk_type_to_str(type), path);
@@ -171,15 +195,30 @@ void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path,
         owner->start_connect();
         return;
     }
-
 }
 
 void ZKClient::data_completion(int rc, const char* value, int value_len, const struct Stat* stat, const void* data)
 {
     DataCompletion* cb = (DataCompletion*) (data);
-    cb->operator()(zk_rc_status(rc), stat, Slice(value, value_len));
-    delete(cb);
+    if (rc == ZOK) {
+        cb->operator()(zk_rc_status(rc), stat, Slice(value, value_len));
+    }
+    else {
+        cb->operator()(zk_rc_status(rc), stat, Slice());
+    }
+    delete (cb);
+}
 
+void ZKClient::string_completion(int rc, const char* string, const void* data)
+{
+    StringCallback* cb = (StringCallback*) (data);
+    if (rc == ZOK) {
+        cb->operator()(zk_rc_status(rc), Slice(string, strlen(string)));
+    }
+    else {
+        cb->operator()(zk_rc_status(rc), Slice());
+    }
+    delete (cb);
 }
 
 }

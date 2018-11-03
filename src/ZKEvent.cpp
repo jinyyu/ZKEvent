@@ -125,6 +125,20 @@ void ZKEvent::get(const std::string& path, const StringCallback& cb)
     });
 }
 
+void ZKEvent::create(const std::string& path, const std::string& data, int flag, const StringCallback& cb)
+{
+    post_callback([this, path, data, flag, cb]() {
+        if (client_) {
+            client_->create(path, data, flag, [cb](const Status& status, const Slice& data) {
+                    cb(status, data);
+                });
+        }
+        else {
+            cb(Status::io_error("not connected"), Slice());
+        }
+    });
+}
+
 void ZKEvent::post_callback(const VoidCallback& cb)
 {
     if (id_ == pthread_self()) {

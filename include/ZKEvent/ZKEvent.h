@@ -18,6 +18,10 @@ class Event;
 
 }
 
+extern int CreateEphemeral;
+
+extern int CreateSequence;
+
 class ZKEvent
 {
 public:
@@ -42,6 +46,8 @@ public:
     }
 
     void get(const std::string& path, const StringCallback& cb);
+
+    void create(const std::string& path, const std::string& data, int flag, const StringCallback& cb);
 
 private:
 

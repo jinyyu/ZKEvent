@@ -12,30 +12,27 @@ int main(int argc, char* argv[])
     ZKEvent* client = new ZKEvent(servers, 5000);
 
     client->set_connected_callback([client]() {
+
         client->get("/test", [](const Status& status, const Slice& data){
-            if (!status.is_ok()) {
-                fprintf(stderr, "----------------------------------------get error %s\n", status.to_string().c_str());
+            if (status.is_ok()) {
+                fprintf(stderr, "get success, data = %s\n", data.to_string().c_str());
             } else {
-                fprintf(stderr, "----------------------------------------get ok, %s\n", data.to_string().c_str());
+                fprintf(stderr, "get error %s\n", status.to_string().c_str());
             }
         });
-                                   });
 
-    client->get("/test", [](const Status& status, const Slice& data){
-        if (!status.is_ok()) {
-            fprintf(stderr, "----------------------------------------get error %s\n", status.to_string().c_str());
-        } else {
-            fprintf(stderr, "----------------------------------------get ok, %s\n", data.to_string().c_str());
-        }
+        client->create("/p-", "data", CreateSequence|CreateEphemeral, [](const Status& status, const Slice& path){
+            if (status.is_ok()) {
+                fprintf(stderr, "create success, path = %s\n", path.to_string().c_str());
+            } else {
+                fprintf(stderr, "create error %s\n", status.to_string().c_str());
+            }
+        });
     });
 
-    std::thread t([client]() {
-        sleep(1);
-        client->start_connect();
-    });
+
+    client->start_connect();
 
     client->loop();
-
-    t.join();
     delete client;
 }
