@@ -40,7 +40,7 @@ public:
 
     void start_connect();
 
-    void set_connected_callback(const VoidCallback& cb)
+    void set_connected_callback(const Callback& cb)
     {
         connected_cb_ = cb;
     }
@@ -50,9 +50,11 @@ public:
     void create(const std::string& path, const std::string& data, int flag, const StringCallback& cb);
 
     void exists(const std::string& path, const ExistsCallback& cb);
+
+    void del(const std::string& path, const VoidCallback& cb);
 private:
 
-    void post_callback(const VoidCallback& cb);
+    void post_callback(const Callback& cb);
 
     void wakeup();
 
@@ -79,12 +81,12 @@ private:
     int wakeup_fd_;
     detail::Event* wakeup_event_;
 
-    std::vector<VoidCallback> pending_callback_;
+    std::vector<Callback> pending_callback_;
     std::mutex lock_;
 
-    std::deque<VoidCallback> task_queue_;
+    std::deque<Callback> task_queue_;
 
-    VoidCallback connected_cb_;
+    Callback connected_cb_;
 };
 
 #endif //ZKCLIENT_DISTRIBUTION_ZKCLIENT_H

@@ -185,7 +185,20 @@ void ZKClient::exists(const std::string& path, int watch, const ExistsCompletion
     ExistsCompletion* callback = new ExistsCompletion(cb);
 
     int rc = zoo_aexists(zk_, path.c_str(), watch, ZKClient::exists_completion, callback);
+    if (rc != ZOK) {
+        cb(zk_rc_status(rc), NULL, false);
+        delete (callback);
+    }
+}
 
+void ZKClient::del(const std::string& path, int version, const VoidCallback& cb)
+{
+    VoidCallback* callback = new VoidCallback(cb);
+    int rc = zoo_adelete(zk_, path.c_str(), version, ZKClient::void_completion, callback);
+    if (rc != ZOK) {
+        cb(zk_rc_status(rc));
+        delete (callback);
+    }
 }
 
 void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx)
@@ -242,6 +255,13 @@ void ZKClient::exists_completion(int rc, const struct Stat* stat, const void* da
         cb->operator()(zk_rc_status(rc), stat, false);
     }
     delete (cb);
+}
+
+void ZKClient::void_completion(int rc, const void* data)
+{
+    VoidCallback* cb = (VoidCallback*) data;
+    cb->operator()(zk_rc_status(rc));
+    delete(cb);
 }
 
 }

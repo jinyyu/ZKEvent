@@ -4,7 +4,9 @@
 #include <ZKEvent/Status.h>
 #include <ZKEvent/Slice.h>
 
-typedef std::function<void()> VoidCallback;
+typedef std::function<void()> Callback;
+
+typedef std::function<void(const Status& status)> VoidCallback;
 
 typedef std::function<void(const Status& status, const Slice& data)> StringCallback;
 

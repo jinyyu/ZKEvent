@@ -12,6 +12,14 @@ int main(int argc, char* argv[])
     ZKEvent* client = new ZKEvent(servers, 5000);
 
     client->set_connected_callback([client]() {
+        client->create("/test", "data", 0, [](const Status& status, const Slice& path) {
+            if (status.is_ok()) {
+                fprintf(stderr, "create success, path = %s\n", path.to_string().c_str());
+            }
+            else {
+                fprintf(stderr, "create error %s\n", status.to_string().c_str());
+            }
+        });
 
         client->get("/test", [](const Status& status, const Slice& data) {
             if (status.is_ok()) {
@@ -22,14 +30,6 @@ int main(int argc, char* argv[])
             }
         });
 
-        client->create("/p-", "data", CreateSequence | CreateEphemeral, [](const Status& status, const Slice& path) {
-            if (status.is_ok()) {
-                fprintf(stderr, "create success, path = %s\n", path.to_string().c_str());
-            }
-            else {
-                fprintf(stderr, "create error %s\n", status.to_string().c_str());
-            }
-        });
 
         client->exists("/test", [](const Status& status, bool exists) {
             if (status.is_ok()) {
@@ -37,6 +37,15 @@ int main(int argc, char* argv[])
             }
             else {
                 fprintf(stderr, "exists error, %d\n", exists);
+            }
+        });
+
+        client->del("/test", [](const Status& status){
+            if (status.is_ok()) {
+                fprintf(stderr, "delete success");
+            }
+            else {
+                fprintf(stderr, "delete error");
             }
         });
     });

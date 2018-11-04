@@ -25,6 +25,8 @@ public:
 
     void exists(const std::string& path, int watch, const ExistsCompletion& cb);
 
+    void del(const std::string& path, int version, const VoidCallback& cb);
+
 private:
     static void zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx);
 
@@ -33,6 +35,8 @@ private:
     static void string_completion(int rc, const char* string, const void* data);
 
     static void exists_completion(int rc, const struct Stat* stat, const void* data);
+
+    static void void_completion(int rc, const void* data);
 
 private:
     ZKEvent* owner_;

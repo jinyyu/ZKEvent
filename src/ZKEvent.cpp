@@ -85,7 +85,7 @@ void ZKEvent::loop()
             events[i]->handle_events();
         }
 
-        std::vector<VoidCallback> callbacks(0);
+        std::vector<Callback> callbacks(0);
 
         {
             std::lock_guard<std::mutex> guard(lock_);
@@ -153,7 +153,21 @@ void ZKEvent::exists(const std::string& path, const ExistsCallback& cb)
     });
 }
 
-void ZKEvent::post_callback(const VoidCallback& cb)
+void ZKEvent::del(const std::string& path, const VoidCallback& cb)
+{
+    post_callback([this, path, cb]() {
+        if (client_) {
+            client_->del(path, 0, [cb](const Status& status) {
+                cb(status);
+            });
+        }
+        else {
+            cb(Status::io_error("not connected"));
+        }
+    });
+}
+
+void ZKEvent::post_callback(const Callback& cb)
 {
     if (id_ == pthread_self()) {
         task_queue_.push_back(cb);

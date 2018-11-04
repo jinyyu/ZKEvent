@@ -30,7 +30,7 @@ public:
         return fd_;
     }
 
-    void set_reading_callback(const VoidCallback& cb)
+    void set_reading_callback(const Callback& cb)
     {
         read_cb_ = cb;
     }
@@ -45,7 +45,7 @@ public:
         enable_ops(EPOLLOUT);
     }
 
-    void set_writing_callback(const VoidCallback& cb)
+    void set_writing_callback(const Callback& cb)
     {
         write_cb_ = cb;
     }
@@ -100,8 +100,8 @@ private:
     int fd_;
     uint32_t interest_ops_;
     uint32_t ready_ops_;
-    VoidCallback read_cb_;
-    VoidCallback write_cb_;
+    Callback read_cb_;
+    Callback write_cb_;
 };
 
 }
