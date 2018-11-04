@@ -154,9 +154,9 @@ ZKClient::~ZKClient()
 void ZKClient::get(const std::string& path, int watch, const DataCompletion& cb)
 {
     DataCompletion* callback = new DataCompletion(cb);
-    int ret = zoo_aget(zk_, path.c_str(), watch, ZKClient::data_completion, callback);
-    if (ret != ZOK) {
-        cb(zk_rc_status(ret), NULL, Slice());
+    int rc = zoo_aget(zk_, path.c_str(), watch, ZKClient::data_completion, callback);
+    if (rc != ZOK) {
+        cb(zk_rc_status(rc), NULL, Slice());
         delete (callback);
     }
 }
@@ -165,19 +165,27 @@ void ZKClient::create(const std::string& path, const Slice& data, int flag, cons
 {
     StringCallback* callback = new StringCallback(cb);
 
-    int ret = zoo_acreate(zk_,
-                          path.c_str(),
-                          data.data(),
-                          data.size(),
-                          &ZOO_OPEN_ACL_UNSAFE,
-                          flag,
-                          ZKClient::string_completion,
-                          callback);
+    int rc = zoo_acreate(zk_,
+                         path.c_str(),
+                         data.data(),
+                         data.size(),
+                         &ZOO_OPEN_ACL_UNSAFE,
+                         flag,
+                         ZKClient::string_completion,
+                         callback);
 
-    if (ret != ZOK) {
-        cb(zk_rc_status(ret), Slice());
+    if (rc != ZOK) {
+        cb(zk_rc_status(rc), Slice());
         delete (callback);
     }
+}
+
+void ZKClient::exists(const std::string& path, int watch, const ExistsCompletion& cb)
+{
+    ExistsCompletion* callback = new ExistsCompletion(cb);
+
+    int rc = zoo_aexists(zk_, path.c_str(), watch, ZKClient::exists_completion, callback);
+
 }
 
 void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx)
@@ -217,6 +225,21 @@ void ZKClient::string_completion(int rc, const char* string, const void* data)
     }
     else {
         cb->operator()(zk_rc_status(rc), Slice());
+    }
+    delete (cb);
+}
+
+void ZKClient::exists_completion(int rc, const struct Stat* stat, const void* data)
+{
+    ExistsCompletion* cb = (ExistsCompletion*) (data);
+    if (rc == ZOK) {
+        cb->operator()(zk_rc_status(rc), stat, true);
+    }
+    else if (rc == ZNONODE) {
+        cb->operator()(Status::ok(), stat, false);
+    }
+    else {
+        cb->operator()(zk_rc_status(rc), stat, false);
     }
     delete (cb);
 }

@@ -76,7 +76,7 @@ void ZKEvent::loop()
 
     while (running_) {
         events.clear();
-        int ret = pull_event(events);
+        int ret = pull_events(events);
         if (ret == -1) {
             break;
         }
@@ -130,11 +130,25 @@ void ZKEvent::create(const std::string& path, const std::string& data, int flag,
     post_callback([this, path, data, flag, cb]() {
         if (client_) {
             client_->create(path, data, flag, [cb](const Status& status, const Slice& data) {
-                    cb(status, data);
-                });
+                cb(status, data);
+            });
         }
         else {
             cb(Status::io_error("not connected"), Slice());
+        }
+    });
+}
+
+void ZKEvent::exists(const std::string& path, const ExistsCallback& cb)
+{
+    post_callback([this, path, cb]() {
+        if (client_) {
+            client_->exists(path, 0, [cb](const Status& status, const struct Stat* zk_state, bool exists) {
+                cb(status, exists);
+            });
+        }
+        else {
+            cb(Status::io_error("not connected"), false);
         }
     });
 }
@@ -151,7 +165,7 @@ void ZKEvent::post_callback(const VoidCallback& cb)
     }
 }
 
-int ZKEvent::pull_event(std::vector<detail::Event*>& events)
+int ZKEvent::pull_events(std::vector<detail::Event*>& events)
 {
     int n_events = epoll_wait(epoll_fd_, events_.data(), events_.size(), 1000);
     if (n_events == -1) {

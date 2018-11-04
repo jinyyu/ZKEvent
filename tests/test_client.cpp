@@ -13,19 +13,30 @@ int main(int argc, char* argv[])
 
     client->set_connected_callback([client]() {
 
-        client->get("/test", [](const Status& status, const Slice& data){
+        client->get("/test", [](const Status& status, const Slice& data) {
             if (status.is_ok()) {
                 fprintf(stderr, "get success, data = %s\n", data.to_string().c_str());
-            } else {
+            }
+            else {
                 fprintf(stderr, "get error %s\n", status.to_string().c_str());
             }
         });
 
-        client->create("/p-", "data", CreateSequence|CreateEphemeral, [](const Status& status, const Slice& path){
+        client->create("/p-", "data", CreateSequence | CreateEphemeral, [](const Status& status, const Slice& path) {
             if (status.is_ok()) {
                 fprintf(stderr, "create success, path = %s\n", path.to_string().c_str());
-            } else {
+            }
+            else {
                 fprintf(stderr, "create error %s\n", status.to_string().c_str());
+            }
+        });
+
+        client->exists("/test", [](const Status& status, bool exists) {
+            if (status.is_ok()) {
+                fprintf(stderr, "exists success, %d\n", exists);
+            }
+            else {
+                fprintf(stderr, "exists error, %d\n", exists);
             }
         });
     });

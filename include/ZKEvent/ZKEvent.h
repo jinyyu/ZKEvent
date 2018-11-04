@@ -49,6 +49,7 @@ public:
 
     void create(const std::string& path, const std::string& data, int flag, const StringCallback& cb);
 
+    void exists(const std::string& path, const ExistsCallback& cb);
 private:
 
     void post_callback(const VoidCallback& cb);
@@ -59,7 +60,7 @@ private:
 
     void register_event(detail::Event* e);
 
-    int pull_event(std::vector<detail::Event*>& events);
+    int pull_events(std::vector<detail::Event*>& events);
 
     void on_connected();
 
