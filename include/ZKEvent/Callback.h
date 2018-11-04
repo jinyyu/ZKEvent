@@ -1,7 +1,7 @@
 #ifndef ZKEVENT_DISTRIBUTION_ASYNCCALLBACK_H
 #define ZKEVENT_DISTRIBUTION_ASYNCCALLBACK_H
 #include <functional>
-#include <vector>
+#include <set>
 #include <memory>
 #include <ZKEvent/Status.h>
 #include <ZKEvent/Slice.h>
@@ -14,11 +14,17 @@ typedef std::function<void(const Status& status, const Slice& data)> StringCallb
 
 typedef std::function<void(const Status& status, bool exists)> ExistsCallback;
 
-typedef std::shared_ptr<std::vector<std::string>> StringVectorPtr;
+typedef std::shared_ptr<std::set<std::string>> StringSetPtr;
 
-typedef std::function<void(const Status& status, StringVectorPtr strings)> StringsCallback;
+typedef std::function<void(const Status& status, StringSetPtr strings)> StringsCallback;
 
-typedef std::function<void(const Status& status, const std::string& data)> DataChangesCallback;
+enum ChildEvent
+{
+    ChildEventErr = 0,
+    ChildEventAdd = 1,
+    ChildEventDel = 2
+};
 
+typedef std::function<void(const Status& status, ChildEvent ev, const Slice& path)> ChildEventCallback;
 
 #endif //ZKEVENT_DISTRIBUTION_ASYNCCALLBACK_H

@@ -141,7 +141,8 @@ ZKClient::ZKClient(ZKEvent* owner)
     if (!zk_) {
         LOG_DEBUG("zookeeper_init error %s", strerror(errno));
         throw std::runtime_error("inid zookeeper error");
-    } else {
+    }
+    else {
         LOG_DEBUG("OK");
     }
 }
@@ -222,6 +223,7 @@ void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path,
     if (type == ZOO_SESSION_EVENT && state == ZOO_CONNECTED_STATE) {
         owner->zk_client_id_ = (void*) zoo_client_id(zh);
         owner->on_connected();
+        return;
     }
 
     if (state == ZOO_EXPIRED_SESSION_STATE) {
@@ -230,6 +232,12 @@ void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path,
     }
     if (type == ZOO_CHANGED_EVENT || type == ZOO_CREATED_EVENT) {
         owner->on_data_changes(path);
+        return;
+    }
+
+    if (type == ZOO_CHILD_EVENT) {
+        owner->on_child_changes(path);
+        return;
     }
 }
 
@@ -284,9 +292,9 @@ void ZKClient::strings_completion(int rc, const struct String_vector* strings, c
     StringsCallback* cb = (StringsCallback*) data;
     Status status = zk_rc_status(rc);
     if (status.is_ok()) {
-        StringVectorPtr children(new std::vector<std::string>());
+        StringSetPtr children(new std::set<std::string>());
         for (int i = 0; i < strings->count; ++i) {
-            children->push_back(strings->data[i]);
+            children->insert(strings->data[i]);
         }
         cb->operator()(status, children);
     }

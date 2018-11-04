@@ -17,9 +17,22 @@ typedef std::shared_ptr<ZKClient> ClientPtr;
 
 class Event;
 
-struct DataChangesContext;
+struct DataChangesContext
+{
+    std::string data;
+    int64_t zxid;
+    StringCallback cb;
+};
 
 typedef std::shared_ptr<DataChangesContext> DataChangesContextPtr;
+
+struct ChildChangesContext
+{
+    StringSetPtr children;
+    ChildEventCallback cb;
+};
+
+typedef std::shared_ptr<ChildChangesContext> ChildChangesContextPtr;
 
 }
 
@@ -60,7 +73,9 @@ public:
 
     void children(const std::string& path, const StringsCallback& cb);
 
-    void subscribe_data_changes(const std::string& path, const DataChangesCallback& cb);
+    void subscribe_data_changes(const std::string& path, const StringCallback& cb);
+
+    void subscribe_child_changes(const std::string& path, const ChildEventCallback& cb);
 private:
 
     void post_callback(const Callback& cb);
@@ -75,7 +90,11 @@ private:
 
     void on_data_changes(const std::string& path);
 
+    void on_child_changes(const std::string& path);
+
     void do_subscribe_data_changes(const std::string& path, detail::DataChangesContextPtr ctx);
+
+    void do_subscribe_data_changes(const std::string& path, detail::ChildChangesContextPtr ctx);
 
     volatile bool running_;
     std::string servers_;
@@ -97,8 +116,8 @@ private:
 
     Callback connected_cb_;
 
-    std::unordered_map<std::string,detail::DataChangesContextPtr> data_ctx_;
-
+    std::unordered_map<std::string, detail::DataChangesContextPtr> data_ctx_;
+    std::unordered_map<std::string, detail::ChildChangesContextPtr> child_ctx_;
 
 };
 

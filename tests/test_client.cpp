@@ -40,25 +40,45 @@ int main(int argc, char* argv[])
             }
         });
 
-        client->children("/", [](const Status& status, StringVectorPtr strings){
+        client->children("/", [](const Status& status, StringSetPtr strings) {
             if (status.is_ok()) {
                 fprintf(stderr, "children success");
-                for (int i = 0; i < strings->size(); ++i) {
-                    fprintf(stderr, "path = %s\n", (*strings)[i].c_str());
+                for (auto it = strings->begin(); it != strings->end(); ++it) {
+                    fprintf(stderr, "path = %s\n", it->c_str());
                 }
             }
             else {
-                fprintf(stderr, "children error");
+                fprintf(stderr, "children error\n");
             }
         });
 
-        client->subscribe_data_changes("/test", [](const Status& status, const std::string& data){
+        client->subscribe_data_changes("/test", [](const Status& status, const Slice& data) {
             if (status.is_ok()) {
-                fprintf(stderr, "data changes %s\n", data.c_str());
+                fprintf(stderr, "data changes %s\n", data.to_string().c_str());
             }
             else {
-                fprintf(stderr, "delete error");
+                fprintf(stderr, "delete error\n");
             }
+        });
+
+        client->subscribe_child_changes("/test", [](const Status& status, ChildEvent ev, const Slice& path) {
+
+            if (!status.is_ok()) {
+                fprintf(stderr, "subscribe error\n");
+            }
+            else {
+                switch (ev) {
+                    case ChildEventAdd:
+                        fprintf(stderr, "child add %s\n", path.to_string().c_str());
+                        break;
+                    case ChildEventDel:
+                        fprintf(stderr, "child del %s\n", path.to_string().c_str());
+                        break;
+                    default:
+                        fprintf(stderr, "unknown event %d\n", ev);
+                }
+            }
+
         });
     });
 

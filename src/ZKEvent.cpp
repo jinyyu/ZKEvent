@@ -7,18 +7,6 @@
 #include <stdexcept>
 
 
-namespace detail
-{
-struct DataChangesContext
-{
-    std::string data;
-    int64_t zxid;
-    DataChangesCallback cb;
-};
-
-}
-
-
 using namespace detail;
 
 #define MAX_EPOLL_EVENT (128)
@@ -186,13 +174,25 @@ void ZKEvent::children(const std::string& path, const StringsCallback& cb)
     });
 }
 
-void ZKEvent::subscribe_data_changes(const std::string& path, const DataChangesCallback& cb)
+void ZKEvent::subscribe_data_changes(const std::string& path, const StringCallback& cb)
 {
     post_callback([this, path, cb]() {
         DataChangesContextPtr ctx(new DataChangesContext);
         ctx->cb = cb;
         ctx->zxid = 0;
         data_ctx_[path] = ctx;
+
+        do_subscribe_data_changes(path, ctx);
+    });
+}
+
+void ZKEvent::subscribe_child_changes(const std::string& path, const ChildEventCallback& cb)
+{
+    post_callback([this, path, cb]() {
+        ChildChangesContextPtr ctx(new ChildChangesContext);
+        ctx->cb = cb;
+        ctx->children = std::make_shared<std::set<std::string>>();
+        child_ctx_[path] = ctx;
 
         do_subscribe_data_changes(path, ctx);
     });
@@ -263,26 +263,70 @@ void ZKEvent::on_data_changes(const std::string& path)
     });
 }
 
-void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::DataChangesContextPtr ctx)
+void ZKEvent::on_child_changes(const std::string& path)
 {
-    if (client_) {
-        client_->get(path, 1, [path, this, ctx](const Status& status, const struct Stat* zk_state, const Slice& data) {
-            if (status.is_ok()) {
-                Slice slice(ctx->data);
-
-                if (slice != data) {
-                    ctx->data = data.to_string();
-                    ctx->cb(status, ctx->data);
-                }
-            }
-            else {
-                ctx->cb(status, std::string());
-            }
-        });
-    }
-    else {
-        ctx->cb(Status::io_error("not connected"), std::string());
-    }
-
+    post_callback([path, this]() {
+        auto it = child_ctx_.find(path);
+        if (it == child_ctx_.end()) {
+            return;
+        }
+        ChildChangesContextPtr ctx = it->second;
+        do_subscribe_data_changes(path, ctx);
+    });
 }
 
+void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::DataChangesContextPtr ctx)
+{
+    if (!client_) {
+        ctx->cb(Status::io_error("not connected"), std::string());
+        return;
+    }
+    client_->get(path, 1, [path, this, ctx](const Status& status, const struct Stat* zk_state, const Slice& data) {
+        if (!status.is_ok()) {
+            ctx->cb(status, std::string());
+            return;
+        }
+
+        //success
+        Slice slice(ctx->data);
+
+        ctx->zxid = zk_state->mzxid;
+
+        if (slice != data) {
+            ctx->data = data.to_string();
+            ctx->cb(status, ctx->data);
+        }
+    });
+}
+
+void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::ChildChangesContextPtr ctx)
+{
+
+    if (!client_) {
+        ctx->cb(Status::io_error("not connected"), ChildEventErr, std::string());
+        return;
+    }
+
+
+    client_->children(path, 1, [path, this, ctx](const Status& status, StringSetPtr strings) {
+        if (!status.is_ok()) {
+            ctx->cb(status, ChildEventErr, std::string());
+            return;
+        }
+
+        //success
+        for (auto it = strings->begin(); it != strings->end(); ++it) {
+            if (ctx->children->find(*it) == ctx->children->end()) {
+                ctx->cb(status, ChildEventAdd, *it);
+            }
+        }
+
+        for (auto it = ctx->children->begin(); it != ctx->children->end(); ++it) {
+            if (strings->find(*it) == strings->end()) {
+                ctx->cb(status, ChildEventDel, *it);
+            }
+        }
+
+        ctx->children = strings;
+    });
+}
