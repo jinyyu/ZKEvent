@@ -141,6 +141,8 @@ ZKClient::ZKClient(ZKEvent* owner)
     if (!zk_) {
         LOG_DEBUG("zookeeper_init error %s", strerror(errno));
         throw std::runtime_error("inid zookeeper error");
+    } else {
+        LOG_DEBUG("OK");
     }
 }
 
@@ -197,6 +199,16 @@ void ZKClient::del(const std::string& path, int version, const VoidCallback& cb)
     int rc = zoo_adelete(zk_, path.c_str(), version, ZKClient::void_completion, callback);
     if (rc != ZOK) {
         cb(zk_rc_status(rc));
+        delete (callback);
+    }
+}
+
+void ZKClient::children(const std::string& path, int watch, const StringsCallback& cb)
+{
+    StringsCallback* callback = new StringsCallback(cb);
+    int rc = zoo_aget_children(zk_, path.c_str(), watch, ZKClient::strings_completion, callback);
+    if (rc != ZOK) {
+        cb(zk_rc_status(rc), nullptr);
         delete (callback);
     }
 }
@@ -261,7 +273,24 @@ void ZKClient::void_completion(int rc, const void* data)
 {
     VoidCallback* cb = (VoidCallback*) data;
     cb->operator()(zk_rc_status(rc));
-    delete(cb);
+    delete (cb);
+}
+
+void ZKClient::strings_completion(int rc, const struct String_vector* strings, const void* data)
+{
+    StringsCallback* cb = (StringsCallback*) data;
+    Status status = zk_rc_status(rc);
+    if (status.is_ok()) {
+        StringVectorPtr children(new std::vector<std::string>());
+        for (int i = 0; i < strings->count; ++i) {
+            children->push_back(strings->data[i]);
+        }
+        cb->operator()(status, children);
+    }
+    else {
+        cb->operator()(zk_rc_status(rc), nullptr);
+    }
+    delete (cb);
 }
 
 }

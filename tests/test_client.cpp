@@ -40,6 +40,18 @@ int main(int argc, char* argv[])
             }
         });
 
+        client->children("/", [](const Status& status, StringVectorPtr strings){
+            if (status.is_ok()) {
+                fprintf(stderr, "children success");
+                for (int i = 0; i < strings->size(); ++i) {
+                    fprintf(stderr, "path = %s\n", (*strings)[i].c_str());
+                }
+            }
+            else {
+                fprintf(stderr, "children error");
+            }
+        });
+
         client->del("/test", [](const Status& status){
             if (status.is_ok()) {
                 fprintf(stderr, "delete success");

@@ -27,6 +27,7 @@ public:
 
     void del(const std::string& path, int version, const VoidCallback& cb);
 
+    void children(const std::string& path, int watch, const StringsCallback& cb);
 private:
     static void zk_event_cb(zhandle_t* zh, int type, int state, const char* path, void* watcherCtx);
 
@@ -37,6 +38,8 @@ private:
     static void exists_completion(int rc, const struct Stat* stat, const void* data);
 
     static void void_completion(int rc, const void* data);
+
+    static void strings_completion(int rc, const struct String_vector* strings, const void* data);
 
 private:
     ZKEvent* owner_;

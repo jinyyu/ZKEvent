@@ -52,13 +52,13 @@ public:
     void exists(const std::string& path, const ExistsCallback& cb);
 
     void del(const std::string& path, const VoidCallback& cb);
+
+    void children(const std::string& path, const StringsCallback& cb);
 private:
 
     void post_callback(const Callback& cb);
 
     void wakeup();
-
-    void setup();
 
     void register_event(detail::Event* e);
 

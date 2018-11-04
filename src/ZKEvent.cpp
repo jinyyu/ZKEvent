@@ -27,24 +27,6 @@ ZKEvent::ZKEvent(const std::vector<std::string>& servers, int timeout)
         servers_.append(servers[i]);
     }
 
-}
-
-ZKEvent::~ZKEvent()
-{
-    if (wakeup_fd_) close(wakeup_fd_);
-
-    if (wakeup_event_) {
-        delete (wakeup_event_);
-    }
-
-    if (epoll_fd_) ::close(epoll_fd_);
-}
-
-void ZKEvent::setup()
-{
-    id_ = pthread_self();
-    LOG_DEBUG("id = %lu", id_);
-
     epoll_fd_ = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd_ == -1) {
         LOG_DEBUG("poll_create1 error %d", errno);
@@ -67,11 +49,24 @@ void ZKEvent::setup()
     });
 
     register_event(wakeup_event_);
+
+}
+
+ZKEvent::~ZKEvent()
+{
+    if (wakeup_fd_) close(wakeup_fd_);
+
+    if (wakeup_event_) {
+        delete (wakeup_event_);
+    }
+
+    if (epoll_fd_) ::close(epoll_fd_);
 }
 
 void ZKEvent::loop()
 {
-    setup();
+    id_ = pthread_self();
+    LOG_DEBUG("id = %lu", id_);
     std::vector<detail::Event*> events;
 
     while (running_) {
@@ -163,6 +158,18 @@ void ZKEvent::del(const std::string& path, const VoidCallback& cb)
         }
         else {
             cb(Status::io_error("not connected"));
+        }
+    });
+}
+
+void ZKEvent::children(const std::string& path, const StringsCallback& cb)
+{
+    post_callback([this, path, cb]() {
+        if (client_) {
+            client_->children(path, 0, cb);
+        }
+        else {
+            cb(Status::io_error("not connected"), nullptr);
         }
     });
 }
