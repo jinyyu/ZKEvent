@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <deque>
+#include <unordered_map>
 #include <sys/epoll.h>
 #include <ZKEvent/Callback.h>
 
@@ -15,6 +16,10 @@ class ZKClient;
 typedef std::shared_ptr<ZKClient> ClientPtr;
 
 class Event;
+
+struct DataChangesContext;
+
+typedef std::shared_ptr<DataChangesContext> DataChangesContextPtr;
 
 }
 
@@ -54,6 +59,8 @@ public:
     void del(const std::string& path, const VoidCallback& cb);
 
     void children(const std::string& path, const StringsCallback& cb);
+
+    void subscribe_data_changes(const std::string& path, const DataChangesCallback& cb);
 private:
 
     void post_callback(const Callback& cb);
@@ -66,7 +73,9 @@ private:
 
     void on_connected();
 
-    void on_session_timeout();
+    void on_data_changes(const std::string& path);
+
+    void do_subscribe_data_changes(const std::string& path, detail::DataChangesContextPtr ctx);
 
     volatile bool running_;
     std::string servers_;
@@ -87,6 +96,10 @@ private:
     std::deque<Callback> task_queue_;
 
     Callback connected_cb_;
+
+    std::unordered_map<std::string,detail::DataChangesContextPtr> data_ctx_;
+
+
 };
 
 #endif //ZKCLIENT_DISTRIBUTION_ZKCLIENT_H

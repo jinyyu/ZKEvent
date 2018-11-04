@@ -228,6 +228,9 @@ void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path,
         owner->start_connect();
         return;
     }
+    if (type == ZOO_CHANGED_EVENT || type == ZOO_CREATED_EVENT) {
+        owner->on_data_changes(path);
+    }
 }
 
 void ZKClient::data_completion(int rc, const char* value, int value_len, const struct Stat* stat, const void* data)

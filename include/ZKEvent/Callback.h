@@ -18,5 +18,7 @@ typedef std::shared_ptr<std::vector<std::string>> StringVectorPtr;
 
 typedef std::function<void(const Status& status, StringVectorPtr strings)> StringsCallback;
 
+typedef std::function<void(const Status& status, const std::string& data)> DataChangesCallback;
+
 
 #endif //ZKEVENT_DISTRIBUTION_ASYNCCALLBACK_H

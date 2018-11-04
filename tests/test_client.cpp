@@ -52,9 +52,9 @@ int main(int argc, char* argv[])
             }
         });
 
-        client->del("/test", [](const Status& status){
+        client->subscribe_data_changes("/test", [](const Status& status, const std::string& data){
             if (status.is_ok()) {
-                fprintf(stderr, "delete success");
+                fprintf(stderr, "data changes %s\n", data.c_str());
             }
             else {
                 fprintf(stderr, "delete error");

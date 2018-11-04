@@ -7,6 +7,18 @@
 #include <stdexcept>
 
 
+namespace detail
+{
+struct DataChangesContext
+{
+    std::string data;
+    int64_t zxid;
+    DataChangesCallback cb;
+};
+
+}
+
+
 using namespace detail;
 
 #define MAX_EPOLL_EVENT (128)
@@ -174,6 +186,18 @@ void ZKEvent::children(const std::string& path, const StringsCallback& cb)
     });
 }
 
+void ZKEvent::subscribe_data_changes(const std::string& path, const DataChangesCallback& cb)
+{
+    post_callback([this, path, cb]() {
+        DataChangesContextPtr ctx(new DataChangesContext);
+        ctx->cb = cb;
+        ctx->zxid = 0;
+        data_ctx_[path] = ctx;
+
+        do_subscribe_data_changes(path, ctx);
+    });
+}
+
 void ZKEvent::post_callback(const Callback& cb)
 {
     if (id_ == pthread_self()) {
@@ -227,7 +251,38 @@ void ZKEvent::on_connected()
     }
 }
 
-void ZKEvent::on_session_timeout()
+void ZKEvent::on_data_changes(const std::string& path)
 {
+    post_callback([path, this]() {
+        auto it = data_ctx_.find(path);
+        if (it == data_ctx_.end()) {
+            return;
+        }
+        DataChangesContextPtr ctx = it->second;
+        do_subscribe_data_changes(path, ctx);
+    });
+}
+
+void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::DataChangesContextPtr ctx)
+{
+    if (client_) {
+        client_->get(path, 1, [path, this, ctx](const Status& status, const struct Stat* zk_state, const Slice& data) {
+            if (status.is_ok()) {
+                Slice slice(ctx->data);
+
+                if (slice != data) {
+                    ctx->data = data.to_string();
+                    ctx->cb(status, ctx->data);
+                }
+            }
+            else {
+                ctx->cb(status, std::string());
+            }
+        });
+    }
+    else {
+        ctx->cb(Status::io_error("not connected"), std::string());
+    }
 
 }
+
