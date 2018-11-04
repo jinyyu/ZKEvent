@@ -1,12 +1,9 @@
-#ifndef ZKCLIENT_DISTRIBUTION_SLICE_H
-#define ZKCLIENT_DISTRIBUTION_SLICE_H
+#ifndef ZKEVENT_DISTRIBUTION_SLICE_H
+#define ZKEVENT_DISTRIBUTION_SLICE_H
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
 #include <string>
-
-namespace zkcli
-{
 
 class Slice
 {
@@ -110,8 +107,6 @@ inline int Slice::compare(const Slice &b) const
         else if (size_ > b.size_) r = +1;
     }
     return r;
-}
-
 }
 
 #endif //ZKCLIENT_DISTRIBUTION_SLICE_H

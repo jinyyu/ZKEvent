@@ -1,92 +1,90 @@
-#include <ZkClient/ZkClient.h>
-#include <ZkClient/DebugLog.h>
+#include <ZKEvent/ZKEvent.h>
+#include <thread>
 #include <unistd.h>
-#include <condition_variable>
 
-using namespace zkcli;
-
-ZkClient* cli;
-
-void test_async_create()
-{
-    StringCallback cb = [](int code, const Slice& data) {
-        LOG_DEBUG("async create code = %s", err_string(code));
-    };
-
-    cli->async_create("/test_zkcli", "mydata", cb);
-}
-
-void test_async_set()
-{
-    AsyncCallback cb = [](int code) {
-        LOG_DEBUG("async SET code = %s", err_string(code));
-    };
-
-    cli->async_set("/test_zkcli", "new data", cb);
-}
-
-void test_async_get_child()
-{
-    StringsCallback cb = [](int code, StringVectorPtr strings) {
-        LOG_DEBUG("async get child code = %s", err_string(code));
-        if (code != ZOK) {
-            return;
-        }
-
-        for (auto it = strings->begin(); it != strings->end(); ++it) {
-            LOG_DEBUG("child %s", it->c_str());
-        }
-    };
-    cli->async_get_children("/", 0, cb);
-}
-
-void test_async_get()
-{
-    StringCallback cb = [](int code, const Slice& data) {
-        std::string str(data.data(), data.size());
-        LOG_DEBUG("async get %s code = %s", str.c_str(), err_string(code));
-    };
-
-    cli->async_get("/test_zkcli", 0, cb);
-}
-
-void test_async_exists()
-{
-    ExistsCallback cb = [](int code, bool exists) {
-        LOG_DEBUG("async exists %d code = %s", exists, err_string(code));
-    };
-
-    cli->async_exists("/test_zkcli", 0, cb);
-}
-
-void on_data_changes(int err, DataChangesEvent event)
-{
-
-}
 
 int main(int argc, char* argv[])
 {
-    boost::asio::io_service io_service;
-    cli = new ZkClient(io_service, "localhost:2181", 10);
+    std::vector<std::string> servers;
+    servers.emplace_back("127.0.0.1:2181");
+    servers.emplace_back("192.168.242.128:2181");
 
-    cli->set_connected_callback([]() {
-        cli->subscribe_data_changes("/test_zkcli", on_data_changes);
-        test_async_create();
-        test_async_set();
-        test_async_get();
-        test_async_exists();
-        test_async_get_child();
+    ZKEvent* client = new ZKEvent(servers, 5000);
 
+    client->set_connected_callback([client]() {
+        client->create("/test", "data", 0, [](const Status& status, const Slice& path) {
+            if (status.is_ok()) {
+                fprintf(stderr, "create success, path = %s\n", path.to_string().c_str());
+            }
+            else {
+                fprintf(stderr, "create error %s\n", status.to_string().c_str());
+            }
+        });
+
+        client->get("/test", [](const Status& status, const Slice& data) {
+            if (status.is_ok()) {
+                fprintf(stderr, "get success, data = %s\n", data.to_string().c_str());
+            }
+            else {
+                fprintf(stderr, "get error %s\n", status.to_string().c_str());
+            }
+        });
+
+
+        client->exists("/test", [](const Status& status, bool exists) {
+            if (status.is_ok()) {
+                fprintf(stderr, "exists success, %d\n", exists);
+            }
+            else {
+                fprintf(stderr, "exists error, %d\n", exists);
+            }
+        });
+
+        client->children("/", [](const Status& status, StringSetPtr strings) {
+            if (status.is_ok()) {
+                fprintf(stderr, "children success");
+                for (auto it = strings->begin(); it != strings->end(); ++it) {
+                    fprintf(stderr, "path = %s\n", it->c_str());
+                }
+            }
+            else {
+                fprintf(stderr, "children error\n");
+            }
+        });
+
+        client->subscribe_data_changes("/test", [](const Status& status, const Slice& data) {
+            if (status.is_ok()) {
+                fprintf(stderr, "data changes %s\n", data.to_string().c_str());
+            }
+            else {
+                fprintf(stderr, "delete error\n");
+            }
+        });
+
+        client->subscribe_child_changes("/test", [](const Status& status, ChildEvent ev, const Slice& path) {
+
+            if (!status.is_ok()) {
+                fprintf(stderr, "subscribe error\n");
+            }
+            else {
+                switch (ev) {
+                    case ChildEventAdd:
+                        fprintf(stderr, "child add %s\n", path.to_string().c_str());
+                        break;
+                    case ChildEventDel:
+                        fprintf(stderr, "child del %s\n", path.to_string().c_str());
+                        break;
+                    default:
+                        fprintf(stderr, "unknown event %d\n", ev);
+                }
+            }
+
+        });
     });
 
-    cli->set_session_expired_callback([]() {
-        LOG_DEBUG("SESSION TIME OUT")
-    });
 
-    cli->start_connect();
+    client->start_connect();
 
-    io_service.run();
-
-    delete (cli);
-    LOG_DEBUG("exit");
+    client->loop();
+    delete client;
 }
