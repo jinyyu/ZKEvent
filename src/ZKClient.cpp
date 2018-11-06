@@ -129,13 +129,12 @@ Status zk_rc_status(int rc)
 
 ZKClient::ZKClient(ZKEvent* owner)
     : owner_(owner),
-      zk_(nullptr),
-      client_id_(nullptr)
+      zk_(nullptr)
 {
     zk_ = zookeeper_init(owner->servers_.c_str(),
                          ZKClient::zk_event_cb,
                          owner->timeout_,
-                         (clientid_t*) owner_->zk_client_id_,
+                         NULL,
                          this,
                          0);
     if (!zk_) {
@@ -221,7 +220,6 @@ void ZKClient::zk_event_cb(zhandle_t* zh, int type, int state, const char* path,
     ZKEvent* owner = thiz->owner_;
 
     if (type == ZOO_SESSION_EVENT && state == ZOO_CONNECTED_STATE) {
-        owner->zk_client_id_ = (void*) zoo_client_id(zh);
         owner->on_connected();
         return;
     }

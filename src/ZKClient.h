@@ -44,7 +44,6 @@ private:
 private:
     ZKEvent* owner_;
     zhandle_t* zk_;
-    const clientid_t* client_id_;
 };
 
 }

@@ -98,7 +98,6 @@ private:
 
     volatile bool running_;
     std::string servers_;
-    void* zk_client_id_;
     int timeout_;
     friend class detail::ZKClient;
     detail::ClientPtr client_;
