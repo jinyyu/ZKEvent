@@ -162,7 +162,7 @@ void ZKEvent::del(const std::string& path, const VoidCallback& cb)
 {
     post_callback([this, path, cb]() {
         if (client_) {
-            client_->del(path, 0, [cb](const Status& status) {
+            client_->del(path, -1, [cb](const Status& status) {
                 cb(status);
             });
         }

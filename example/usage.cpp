@@ -37,7 +37,106 @@ void notify_thread()
         g_client->create("/test-", "some data", CreateEphemeral | CreateSequence, create_cb);
         g_client->set("/test", std::to_string(i), [](const Status& status) {});
     }
-    g_client->stop();
+    g_client->del("/test", [](const Status& status) {
+        if (status.is_ok()) {
+            LOG_DEBUG("delete success");
+        }
+        else {
+            LOG_DEBUG("delete error %s", status.to_string().c_str());
+        }
+        g_client->stop();
+    });
+}
+
+void subscribe_thread()
+{
+    g_client->subscribe_data_changes("/test", [](const Status& status, const Slice& data) {
+        if (status.is_ok()) {
+            LOG_DEBUG("%s data changes: %s", "/test", data.to_string().c_str());
+        }
+        else {
+            LOG_DEBUG("data changes");
+        }
+    });
+
+    g_client->subscribe_child_changes("/", [](const Status& status, ChildEvent ev, const Slice& path) {
+
+        if (!status.is_ok()) {
+            LOG_DEBUG("subscribe error %s", status.to_string().c_str());
+        }
+        else {
+            switch (ev) {
+                case ChildEventAdd:
+                    LOG_DEBUG("/ child add %s", path.to_string().c_str());
+                    break;
+                case ChildEventDel:
+                    LOG_DEBUG("/ child del %s", path.to_string().c_str());
+                    break;
+                default:
+                    LOG_DEBUG("unknown event %d", ev);
+            }
+        }
+
+    });
+}
+
+void start_tests()
+{
+    g_client->get("/test", [](const Status& status, const Slice& data) {
+        if (status.is_ok()) {
+            LOG_DEBUG("get success, data = %s", data.to_string().c_str());
+        }
+        else {
+            LOG_DEBUG("get error %s", status.to_string().c_str());
+        }
+    });
+
+
+    g_client->children("/", [](const Status& status, StringSetPtr strings) {
+        if (status.is_ok()) {
+            LOG_DEBUG("children success");
+            for (auto it = strings->begin(); it != strings->end(); ++it) {
+                LOG_DEBUG("path = %s", ("/" + *it).c_str());
+            }
+        }
+        else {
+            LOG_DEBUG("children error");
+        }
+    });
+
+    std::thread t(notify_thread);
+    t.detach();
+
+    std::thread t2(subscribe_thread);
+    t2.detach();
+}
+
+void on_connected()
+{
+    LOG_DEBUG("connected success");
+
+    g_client->exists("/test", [](const Status& status, bool exists) {
+        if (!status.is_ok()) {
+            LOG_DEBUG("exists error %s", status.to_string().c_str());
+            g_client->stop();
+            return;
+        }
+        if (exists) {
+            start_tests();
+            return;
+        }
+
+        g_client->create("/test", "data", 0, [](const Status& status, const Slice& path) {
+            if (status.is_ok()) {
+                LOG_DEBUG("create success, path = %s", path.to_string().c_str());
+                start_tests();
+            }
+            else {
+                LOG_DEBUG("create error %s", status.to_string().c_str());
+                g_client->stop();
+            }
+        });
+    });
 }
 
 int main(int argc, char* argv[])
@@ -54,80 +153,8 @@ int main(int argc, char* argv[])
     servers.emplace_back(g_zk_server);
 
     g_client = std::make_shared<ZKEvent>(servers, g_timeout);
-    g_client->set_connected_callback([]() {
-        g_client->exists("/test", [](const Status& status, bool exists) {
-            if (!status.is_ok()) {
-                LOG_DEBUG("exists error %s", status.to_string().c_str());
-                g_client->stop();
-                return;
-            }
-            if (exists) {
-                std::thread t(notify_thread);
-                t.detach();
-            }
-        });
 
-        g_client->create("/test", "data", 0, [](const Status& status, const Slice& path) {
-            if (status.is_ok()) {
-                LOG_DEBUG("create success, path = %s", path.to_string().c_str());
-            }
-            else {
-                LOG_DEBUG("create error %s", status.to_string().c_str());
-            }
-        });
-
-
-        g_client->get("/test", [](const Status& status, const Slice& data) {
-            if (status.is_ok()) {
-                LOG_DEBUG("get success, data = %s", data.to_string().c_str());
-            }
-            else {
-                LOG_DEBUG("get error %s", status.to_string().c_str());
-            }
-        });
-
-
-        g_client->children("/", [](const Status& status, StringSetPtr strings) {
-            if (status.is_ok()) {
-                LOG_DEBUG("children success");
-                for (auto it = strings->begin(); it != strings->end(); ++it) {
-                    LOG_DEBUG("path = %s", ("/" + *it).c_str());
-                }
-            }
-            else {
-                LOG_DEBUG("children error");
-            }
-        });
-
-        g_client->subscribe_data_changes("/test", [](const Status& status, const Slice& data) {
-            if (status.is_ok()) {
-                LOG_DEBUG("%s data changes: %s", "/test", data.to_string().c_str());
-            }
-            else {
-                LOG_DEBUG("data changes");
-            }
-        });
-
-        g_client->subscribe_child_changes("/", [](const Status& status, ChildEvent ev, const Slice& path) {
-
-            if (!status.is_ok()) {
-                LOG_DEBUG("subscribe error %s", status.to_string().c_str());
-            }
-            else {
-                switch (ev) {
-                    case ChildEventAdd:
-                        LOG_DEBUG("/ child add %s", path.to_string().c_str());
-                        break;
-                    case ChildEventDel:
-                        LOG_DEBUG("/ child del %s", path.to_string().c_str());
-                        break;
-                    default:
-                        LOG_DEBUG("unknown event %d", ev);
-                }
-            }
-
-        });
-    });
+    g_client->set_connected_callback(on_connected);
 
     g_client->start_connect();
     g_client->loop();
