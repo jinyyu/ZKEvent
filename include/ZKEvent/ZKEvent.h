@@ -65,6 +65,8 @@ public:
 
     void get(const std::string& path, const StringCallback& cb);
 
+    void set(const std::string& path, const std::string& data, const VoidCallback& cb);
+
     void create(const std::string& path, const std::string& data, int flag, const StringCallback& cb);
 
     void exists(const std::string& path, const ExistsCallback& cb);
@@ -98,7 +100,6 @@ private:
 
     volatile bool running_;
     std::string servers_;
-    void* zk_client_id_;
     int timeout_;
     friend class detail::ZKClient;
     detail::ClientPtr client_;
