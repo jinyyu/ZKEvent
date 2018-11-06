@@ -120,6 +120,18 @@ void ZKEvent::get(const std::string& path, const StringCallback& cb)
     });
 }
 
+void ZKEvent::set(const std::string& path, const std::string& data, const VoidCallback& cb)
+{
+    post_callback([this, path, data, cb]() {
+        if (client_) {
+            client_->set(path, data, -1, cb);
+        }
+        else {
+            cb(Status::io_error("not connected"));
+        }
+    });
+}
+
 void ZKEvent::create(const std::string& path, const std::string& data, int flag, const StringCallback& cb)
 {
     post_callback([this, path, data, flag, cb]() {
@@ -138,9 +150,7 @@ void ZKEvent::exists(const std::string& path, const ExistsCallback& cb)
 {
     post_callback([this, path, cb]() {
         if (client_) {
-            client_->exists(path, 0, [cb](const Status& status, const struct Stat* zk_state, bool exists) {
-                cb(status, exists);
-            });
+            client_->exists(path, 0, cb);
         }
         else {
             cb(Status::io_error("not connected"), false);

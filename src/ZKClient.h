@@ -10,7 +10,7 @@ namespace detail
 
 typedef std::function<void(const Status& status, const struct Stat* zk_state, const Slice& data)> DataCompletion;
 
-typedef std::function<void(const Status& status, const struct Stat* zk_state, bool exists)> ExistsCompletion;
+typedef std::function<void(int rc, const struct Stat* zk_state)> StateCompletion;
 
 class ZKClient
 {
@@ -23,7 +23,9 @@ public:
 
     void create(const std::string& path, const Slice& data, int flag, const StringCallback& cb);
 
-    void exists(const std::string& path, int watch, const ExistsCompletion& cb);
+    void set(const std::string& path, const std::string& data, int version, const VoidCallback& cb);
+
+    void exists(const std::string& path, int watch, const ExistsCallback& cb);
 
     void del(const std::string& path, int version, const VoidCallback& cb);
 
@@ -35,7 +37,7 @@ private:
 
     static void string_completion(int rc, const char* string, const void* data);
 
-    static void exists_completion(int rc, const struct Stat* stat, const void* data);
+    static void state_completion(int rc, const struct Stat* stat, const void* data);
 
     static void void_completion(int rc, const void* data);
 

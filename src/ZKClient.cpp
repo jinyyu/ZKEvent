@@ -182,13 +182,35 @@ void ZKClient::create(const std::string& path, const Slice& data, int flag, cons
     }
 }
 
-void ZKClient::exists(const std::string& path, int watch, const ExistsCompletion& cb)
+void ZKClient::set(const std::string& path, const std::string& data, int version, const VoidCallback& cb)
 {
-    ExistsCompletion* callback = new ExistsCompletion(cb);
-
-    int rc = zoo_aexists(zk_, path.c_str(), watch, ZKClient::exists_completion, callback);
+    StateCompletion* callback = new StateCompletion([cb](int rc, const struct Stat* zk_state) {
+        cb(zk_rc_status(rc));
+    });
+    int rc = zoo_aset(zk_, path.c_str(), data.c_str(), data.size(), version, ZKClient::state_completion, callback);
     if (rc != ZOK) {
-        cb(zk_rc_status(rc), NULL, false);
+        cb(zk_rc_status(rc));
+        delete (callback);
+    }
+}
+
+void ZKClient::exists(const std::string& path, int watch, const ExistsCallback& cb)
+{
+    StateCompletion* callback = new StateCompletion([cb](int rc, const struct Stat* zk_state) {
+        if (rc == ZOK) {
+            cb(zk_rc_status(rc), true);
+        }
+        else if (rc == ZNONODE) {
+            cb(Status::ok(), false);
+        }
+        else {
+            cb(zk_rc_status(rc), false);
+        }
+    });
+
+    int rc = zoo_aexists(zk_, path.c_str(), watch, ZKClient::state_completion, callback);
+    if (rc != ZOK) {
+        cb(zk_rc_status(rc), false);
         delete (callback);
     }
 }
@@ -263,18 +285,10 @@ void ZKClient::string_completion(int rc, const char* string, const void* data)
     delete (cb);
 }
 
-void ZKClient::exists_completion(int rc, const struct Stat* stat, const void* data)
+void ZKClient::state_completion(int rc, const struct Stat* stat, const void* data)
 {
-    ExistsCompletion* cb = (ExistsCompletion*) (data);
-    if (rc == ZOK) {
-        cb->operator()(zk_rc_status(rc), stat, true);
-    }
-    else if (rc == ZNONODE) {
-        cb->operator()(Status::ok(), stat, false);
-    }
-    else {
-        cb->operator()(zk_rc_status(rc), stat, false);
-    }
+    StateCompletion* cb = (StateCompletion*) (data);
+    cb->operator()(rc, stat);
     delete (cb);
 }
 

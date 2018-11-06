@@ -35,6 +35,7 @@ void notify_thread()
             }
         };
         g_client->create("/test-", "some data", CreateEphemeral | CreateSequence, create_cb);
+        g_client->set("/test", std::to_string(i), [](const Status& status) {});
     }
     g_client->stop();
 }

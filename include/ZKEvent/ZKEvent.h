@@ -65,6 +65,8 @@ public:
 
     void get(const std::string& path, const StringCallback& cb);
 
+    void set(const std::string& path, const std::string& data, const VoidCallback& cb);
+
     void create(const std::string& path, const std::string& data, int flag, const StringCallback& cb);
 
     void exists(const std::string& path, const ExistsCallback& cb);
