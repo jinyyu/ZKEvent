@@ -3,6 +3,9 @@ project(ZKEvent-distribution)
 
 set(CMAKE_CXX_STANDARD 11)
 
+add_definitions(-Wall)
+add_definitions(-Wno-unused-function)
+
 set(HEADER_DIR ${CMAKE_SOURCE_DIR}/include)
 
 include_directories(${HEADER_DIR})

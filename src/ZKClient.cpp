@@ -90,6 +90,8 @@ Status zk_rc_status(int rc)
             return Status::not_supported("currently not supported");
         case ZNONODE:
             return Status::not_found("node does not exist");
+        case ZAPIERROR:
+            return Status::not_supported("api error");
         case ZNOAUTH:
             return Status::io_error("not authenticated");
         case ZBADVERSION:

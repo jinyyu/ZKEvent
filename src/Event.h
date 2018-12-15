@@ -11,9 +11,9 @@ class Event
 {
 public:
     explicit Event(int fd)
-        : ready_ops_(0),
+        : fd_(fd),
           interest_ops_(0),
-          fd_(fd)
+          ready_ops_(0)
     {
 
     }
