@@ -96,7 +96,7 @@ private:
 
     void do_subscribe_data_changes(const std::string& path, detail::DataChangesContextPtr ctx);
 
-    void do_subscribe_data_changes(const std::string& path, detail::ChildChangesContextPtr ctx);
+    void do_subscribe_child_changes(const std::string& path, detail::ChildChangesContextPtr ctx);
 
     volatile bool running_;
     std::string servers_;

@@ -41,13 +41,12 @@ ZKEvent::ZKEvent(const std::vector<std::string>& servers, int timeout)
 
     wakeup_event_ = new Event(wakeup_fd_);
     wakeup_event_->enable_reading();
-    wakeup_event_->set_reading_callback([this]()
-                                        {
-                                            uint64_t n;
-                                            if (::eventfd_read(wakeup_fd_, &n) < 0) {
-                                                LOG_DEBUG("eventfd_read error %d", errno);
-                                            }
-                                        });
+    wakeup_event_->set_reading_callback([this]() {
+        uint64_t n;
+        if (::eventfd_read(wakeup_fd_, &n) < 0) {
+            LOG_DEBUG("eventfd_read error %d", errno);
+        }
+    });
 
     register_event(wakeup_event_);
 
@@ -101,125 +100,113 @@ void ZKEvent::loop()
 
 void ZKEvent::start_connect()
 {
-    post_callback([this]()
-                  {
-                      LOG_DEBUG("start connect");
-                      client_ = std::make_shared<detail::ZKClient>(this);
-                  });
+    post_callback([this]() {
+        LOG_DEBUG("start connect");
+        client_ = std::make_shared<detail::ZKClient>(this);
+    });
 }
 
 void ZKEvent::get(const std::string& path, const StringCallback& cb)
 {
-    post_callback([this, path, cb]()
-                  {
-                      if (client_) {
-                          client_
-                              ->get(path, 0, [cb](const Status& status, const struct Stat* zk_state, const Slice& data)
-                              {
-                                  cb(status, data);
-                              });
-                      }
-                      else {
-                          cb(Status::io_error("not connected"), Slice());
-                      }
-                  });
+    post_callback([this, path, cb]() {
+        if (client_) {
+            client_
+                ->get(path, 0, [cb](const Status& status, const struct Stat* zk_state, const Slice& data) {
+                    cb(status, data);
+                });
+        }
+        else {
+            cb(Status::io_error("not connected"), Slice());
+        }
+    });
 }
 
 void ZKEvent::set(const std::string& path, const std::string& data, const VoidCallback& cb)
 {
-    post_callback([this, path, data, cb]()
-                  {
-                      if (client_) {
-                          client_->set(path, data, -1, cb);
-                      }
-                      else {
-                          cb(Status::io_error("not connected"));
-                      }
-                  });
+    post_callback([this, path, data, cb]() {
+        if (client_) {
+            client_->set(path, data, -1, cb);
+        }
+        else {
+            cb(Status::io_error("not connected"));
+        }
+    });
 }
 
 void ZKEvent::create(const std::string& path, const std::string& data, int flag, const StringCallback& cb)
 {
-    post_callback([this, path, data, flag, cb]()
-                  {
-                      if (client_) {
-                          client_->create(path, data, flag, [cb](const Status& status, const Slice& data)
-                          {
-                              cb(status, data);
-                          });
-                      }
-                      else {
-                          cb(Status::io_error("not connected"), Slice());
-                      }
-                  });
+    post_callback([this, path, data, flag, cb]() {
+        if (client_) {
+            client_->create(path, data, flag, [cb](const Status& status, const Slice& data) {
+                cb(status, data);
+            });
+        }
+        else {
+            cb(Status::io_error("not connected"), Slice());
+        }
+    });
 }
 
 void ZKEvent::exists(const std::string& path, const ExistsCallback& cb)
 {
-    post_callback([this, path, cb]()
-                  {
-                      if (client_) {
-                          client_->exists(path, 0, cb);
-                      }
-                      else {
-                          cb(Status::io_error("not connected"), false);
-                      }
-                  });
+    post_callback([this, path, cb]() {
+        if (client_) {
+            client_->exists(path, 0, cb);
+        }
+        else {
+            cb(Status::io_error("not connected"), false);
+        }
+    });
 }
 
 void ZKEvent::del(const std::string& path, const VoidCallback& cb)
 {
-    post_callback([this, path, cb]()
-                  {
-                      if (client_) {
-                          client_->del(path, -1, [cb](const Status& status)
-                          {
-                              cb(status);
-                          });
-                      }
-                      else {
-                          cb(Status::io_error("not connected"));
-                      }
-                  });
+    post_callback([this, path, cb]() {
+        if (client_) {
+            client_->del(path, -1, [cb](const Status& status) {
+                cb(status);
+            });
+        }
+        else {
+            cb(Status::io_error("not connected"));
+        }
+    });
 }
 
 void ZKEvent::children(const std::string& path, const StringsCallback& cb)
 {
-    post_callback([this, path, cb]()
-                  {
-                      if (client_) {
-                          client_->children(path, 0, cb);
-                      }
-                      else {
-                          cb(Status::io_error("not connected"), nullptr);
-                      }
-                  });
+    post_callback([this, path, cb]() {
+        if (client_) {
+            client_->children(path, 0, cb);
+        }
+        else {
+            cb(Status::io_error("not connected"), nullptr);
+        }
+    });
 }
 
 void ZKEvent::subscribe_data_changes(const std::string& path, const StringCallback& cb)
 {
-    post_callback([this, path, cb]()
-                  {
-                      DataChangesContextPtr ctx(new DataChangesContext);
-                      ctx->cb = cb;
-                      ctx->zxid = 0;
-                      data_ctx_[path] = ctx;
+    post_callback([this, path, cb]() {
+        DataChangesContextPtr ctx(new DataChangesContext);
+        ctx->cb = cb;
+        ctx->zxid = 0;
+        data_ctx_[path] = ctx;
 
-                      do_subscribe_data_changes(path, ctx);
-                  });
+        do_subscribe_data_changes(path, ctx);
+    });
 }
 
 void ZKEvent::subscribe_child_changes(const std::string& path, const ChildEventCallback& cb)
 {
-    post_callback([this, path, cb]()
-                  {
-                      ChildChangesContextPtr ctx(new ChildChangesContext);
-                      ctx->cb = cb;
-                      ctx->children = std::make_shared<std::set<std::string>>();
-                      child_ctx_[path] = ctx;
+    post_callback([this, path, cb]() {
+        ChildChangesContextPtr ctx(new ChildChangesContext);
+        ctx->cb = cb;
+        ctx->children = std::make_shared<std::set<std::string>>();
+        child_ctx_[path] = ctx;
 
-                      do_subscribe_data_changes(path, ctx);
-                  });
+        do_subscribe_child_changes(path, ctx);
+    });
 }
 
 void ZKEvent::post_callback(const Callback& cb)
@@ -277,28 +264,26 @@ void ZKEvent::on_connected()
 
 void ZKEvent::on_data_changes(const std::string& path)
 {
-    post_callback([path, this]()
-                  {
-                      auto it = data_ctx_.find(path);
-                      if (it == data_ctx_.end()) {
-                          return;
-                      }
-                      DataChangesContextPtr ctx = it->second;
-                      do_subscribe_data_changes(path, ctx);
-                  });
+    post_callback([path, this]() {
+        auto it = data_ctx_.find(path);
+        if (it == data_ctx_.end()) {
+            return;
+        }
+        DataChangesContextPtr ctx = it->second;
+        do_subscribe_data_changes(path, ctx);
+    });
 }
 
 void ZKEvent::on_child_changes(const std::string& path)
 {
-    post_callback([path, this]()
-                  {
-                      auto it = child_ctx_.find(path);
-                      if (it == child_ctx_.end()) {
-                          return;
-                      }
-                      ChildChangesContextPtr ctx = it->second;
-                      do_subscribe_data_changes(path, ctx);
-                  });
+    post_callback([path, this]() {
+        auto it = child_ctx_.find(path);
+        if (it == child_ctx_.end()) {
+            return;
+        }
+        ChildChangesContextPtr ctx = it->second;
+        do_subscribe_child_changes(path, ctx);
+    });
 }
 
 void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::DataChangesContextPtr ctx)
@@ -307,8 +292,7 @@ void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::DataCha
         ctx->cb(Status::io_error("not connected"), std::string());
         return;
     }
-    client_->get(path, 1, [path, this, ctx](const Status& status, const struct Stat* zk_state, const Slice& data)
-    {
+    client_->get(path, 1, [path, this, ctx](const Status& status, const struct Stat* zk_state, const Slice& data) {
         if (!status.is_ok()) {
             ctx->cb(status, std::string());
             return;
@@ -326,7 +310,7 @@ void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::DataCha
     });
 }
 
-void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::ChildChangesContextPtr ctx)
+void ZKEvent::do_subscribe_child_changes(const std::string& path, detail::ChildChangesContextPtr ctx)
 {
 
     if (!client_) {
@@ -335,8 +319,7 @@ void ZKEvent::do_subscribe_data_changes(const std::string& path, detail::ChildCh
     }
 
 
-    client_->children(path, 1, [path, this, ctx](const Status& status, StringSetPtr strings)
-    {
+    client_->children(path, 1, [path, this, ctx](const Status& status, StringSetPtr strings) {
         if (!status.is_ok()) {
             ctx->cb(status, ChildEventErr, std::string());
             return;
